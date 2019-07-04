@@ -17,15 +17,15 @@ public class Main {
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
-        log.info("Starting VehiclePositionProcessor");
+        log.info("Starting VehiclePositionHandler");
         Config config = ConfigParser.createConfig();
         try (PulsarApplication app = PulsarApplication.newInstance(config)) {
 
             PulsarApplicationContext context = app.getContext();
-            //IMessageHandler handler = new VehiclePositionProcessor(context);
+            IMessageHandler handler = new VehiclePositionHandler(context);
 
             log.info("Start handling the messages");
-            //app.launchWithHandler(handler);
+            app.launchWithHandler(handler);
         } catch (Exception e) {
             log.error("Exception at main", e);
         }
