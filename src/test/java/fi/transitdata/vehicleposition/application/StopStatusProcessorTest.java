@@ -40,31 +40,31 @@ public class StopStatusProcessorTest {
     public void testCalculateStopStatus() {
         StopStatusProcessor calculator = new StopStatusProcessor();
 
-        StopStatusProcessor.VehicleStopStatus stopStatus1 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "1", null));
+        StopStatusProcessor.StopStatus stopStatus1 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "1", null));
         assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO, stopStatus1.stopStatus);
         assertEquals("1", stopStatus1.stopId);
 
-        StopStatusProcessor.VehicleStopStatus stopStatus2 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.DUE, "1", "1"));
+        StopStatusProcessor.StopStatus stopStatus2 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.DUE, "1", "1"));
         assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.INCOMING_AT, stopStatus2.stopStatus);
         assertEquals("1", stopStatus2.stopId);
 
-        StopStatusProcessor.VehicleStopStatus stopStatus3 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "1", "1"));
+        StopStatusProcessor.StopStatus stopStatus3 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "1", "1"));
         assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.INCOMING_AT, stopStatus3.stopStatus);
         assertEquals("1", stopStatus3.stopId);
 
-        StopStatusProcessor.VehicleStopStatus stopStatus4 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.ARS, "1", "1"));
+        StopStatusProcessor.StopStatus stopStatus4 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.ARS, "1", "1"));
         assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT, stopStatus4.stopStatus);
         assertEquals("1", stopStatus4.stopId);
 
-        StopStatusProcessor.VehicleStopStatus stopStatus5 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.PDE, "2", "1"));
+        StopStatusProcessor.StopStatus stopStatus5 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.PDE, "2", "1"));
         assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO, stopStatus5.stopStatus);
         assertEquals("2", stopStatus5.stopId);
 
-        StopStatusProcessor.VehicleStopStatus stopStatus6 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "2", null));
+        StopStatusProcessor.StopStatus stopStatus6 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "2", null));
         assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO, stopStatus6.stopStatus);
         assertEquals("2", stopStatus6.stopId);
 
-        StopStatusProcessor.VehicleStopStatus stopStatus7 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.PAS, "3", "2"));
+        StopStatusProcessor.StopStatus stopStatus7 = calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.PAS, "3", "2"));
         assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO, stopStatus7.stopStatus);
         assertEquals("3", stopStatus7.stopId);
 
