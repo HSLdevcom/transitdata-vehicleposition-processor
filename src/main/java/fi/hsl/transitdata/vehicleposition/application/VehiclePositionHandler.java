@@ -53,7 +53,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                 Iterator<Hfp.Data> hfpIterator = copy.get(vehicle).iterator();
                 Hfp.Data data = null;
 
-                StopStatusProcessor.VehicleStopStatus currentStopStatus = null;
+                StopStatusProcessor.StopStatus currentStopStatus = null;
                 //Go through all HFP messages to find the current stop status
                 while (hfpIterator.hasNext()) {
                     data = hfpIterator.next();

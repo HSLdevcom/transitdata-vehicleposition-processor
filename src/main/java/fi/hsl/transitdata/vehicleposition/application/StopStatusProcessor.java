@@ -7,26 +7,26 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StopStatusProcessor {
-    private final Map<String, VehicleStopStatus> vehicleStopStatus = new HashMap<>(1000);
+    private final Map<String, StopStatus> vehicleStopStatus = new HashMap<>(1000);
 
-    public VehicleStopStatus getStopStatus(Hfp.Data hfpData) {
+    public StopStatus getStopStatus(Hfp.Data hfpData) {
         return vehicleStopStatus.compute(hfpData.getTopic().getUniqueVehicleId(), (uniqueVehicleId, previousStopStatus) -> processStopStatus(previousStopStatus, hfpData));
     }
 
-    private VehicleStopStatus processStopStatus(VehicleStopStatus previousStopStatus, Hfp.Data hfpData) {
+    private StopStatus processStopStatus(StopStatus previousStopStatus, Hfp.Data hfpData) {
         if (previousStopStatus == null || hfpData.getTopic().getEventType() == Hfp.Topic.EventType.PDE || hfpData.getTopic().getEventType() == Hfp.Topic.EventType.PAS) {
             //Set StopStatus to IN_TRANSIT_TO when a vehicle departs from a stop or passes through a stop
-            return new VehicleStopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
+            return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
         }
 
         if (hfpData.getTopic().getEventType() == Hfp.Topic.EventType.DUE) {
             //Set StopStatus to INCOMING_AT when a vehicle is just about to arrive to a stop
-            return new VehicleStopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.INCOMING_AT);
+            return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.INCOMING_AT);
         }
 
         if (hfpData.getTopic().getEventType() == Hfp.Topic.EventType.ARS) {
             //Set StopStatus to STOPPED_AT when a vehicle has arrived to a stop
-            return new VehicleStopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT);
+            return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT);
         }
 
         //If a vehicle was arriving to a stop and the stop id in payload has not changed, return previous status
@@ -42,7 +42,7 @@ public class StopStatusProcessor {
                 return previousStopStatus;
             } else {
                 //If next_stop has changed, the vehicle is in transit to the next stop
-                return new VehicleStopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
+                return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
             }
         }
 
@@ -51,14 +51,14 @@ public class StopStatusProcessor {
             return null;
         }
 
-        return new VehicleStopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
+        return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
     }
 
-    public static class VehicleStopStatus {
+    public static class StopStatus {
         public final String stopId;
         public final GtfsRealtime.VehiclePosition.VehicleStopStatus stopStatus;
 
-        private VehicleStopStatus(String stopId, GtfsRealtime.VehiclePosition.VehicleStopStatus stopStatus) {
+        private StopStatus(String stopId, GtfsRealtime.VehiclePosition.VehicleStopStatus stopStatus) {
             this.stopId = stopId;
             this.stopStatus = stopStatus;
         }
