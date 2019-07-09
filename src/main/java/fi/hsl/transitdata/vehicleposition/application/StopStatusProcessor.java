@@ -58,7 +58,7 @@ public class StopStatusProcessor {
         public final String stopId;
         public final GtfsRealtime.VehiclePosition.VehicleStopStatus stopStatus;
 
-        private StopStatus(String stopId, GtfsRealtime.VehiclePosition.VehicleStopStatus stopStatus) {
+        public StopStatus(String stopId, GtfsRealtime.VehiclePosition.VehicleStopStatus stopStatus) {
             this.stopId = stopId;
             this.stopStatus = stopStatus;
         }
