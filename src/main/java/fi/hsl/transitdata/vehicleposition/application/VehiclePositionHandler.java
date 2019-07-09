@@ -9,17 +9,15 @@ import fi.hsl.common.pulsar.IMessageHandler;
 import fi.hsl.common.pulsar.PulsarApplicationContext;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
+import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.DateFormat;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import static fi.hsl.transitdata.vehicleposition.application.TimeUtils.*;
 
 public class VehiclePositionHandler implements IMessageHandler {
     private static final Logger log = LoggerFactory.getLogger(VehiclePositionHandler.class);
@@ -60,45 +58,14 @@ public class VehiclePositionHandler implements IMessageHandler {
                     currentStopStatus = stopStatusProcessor.getStopStatus(data);
                 }
 
-                //Ignore messages where the vehicle has no location or it has no stop status after reaching the final stop
-                if (!data.getPayload().hasLat() || !data.getPayload().hasLong() || currentStopStatus == null) {
-                    continue;
-                }
-
-                GtfsRealtime.VehiclePosition.Builder vp = GtfsRealtime.VehiclePosition.newBuilder();
-
-                vp.setTimestamp(data.getPayload().getTsi());
-                vp.setCurrentStatus(currentStopStatus.stopStatus);
-                vp.setStopId(currentStopStatus.stopId);
-
-                vp.setPosition(GtfsRealtime.Position.newBuilder()
-                        .setLatitude((float) data.getPayload().getLat())
-                        .setLongitude((float) data.getPayload().getLong())
-                        .setSpeed((float) data.getPayload().getSpd())
-                        .setBearing(data.getPayload().getHdg())
-                        .setOdometer(data.getPayload().getOdo()));
-
-                vp.setVehicle(GtfsRealtime.VehicleDescriptor.newBuilder()
-                        .setId(data.getTopic().getUniqueVehicleId()));
-
-                String startTime = getStartTime(data);
-
-                vp.setTrip(GtfsRealtime.TripDescriptor.newBuilder()
-                        .setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
-                        .setDirectionId(data.getTopic().getDirectionId() - 1)
-                        .setRouteId(data.getTopic().getRouteId())
-                        .setStartDate(data.getPayload().getOday())
-                        .setStartTime(startTime));
-
-                if (data.getPayload().getOccu() == 100) {
-                    vp.setOccupancyStatus(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
-                }
-
-                GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), vp.build(), data.getPayload().getTsi());
-                try {
-                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
-                } catch (PulsarClientException e) {
-                    log.error("Failed to send Pulsar message", e);
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, currentStopStatus);
+                if (optionalVehiclePosition.isPresent()) {
+                    GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
+                    try {
+                        sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
+                    } catch (PulsarClientException e) {
+                        log.error("Failed to send Pulsar message", e);
+                    }
                 }
             }
         }, HFP_PROCESSING_INTERVAL_MS, HFP_PROCESSING_INTERVAL_MS, TimeUnit.MILLISECONDS);
