@@ -1,7 +1,7 @@
-package fi.transitdata.vehicleposition.application;
+package fi.transitdata.vehicleposition.application.utils;
 
 import fi.hsl.common.hfp.proto.Hfp;
-import fi.hsl.transitdata.vehicleposition.application.TimeUtils;
+import fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

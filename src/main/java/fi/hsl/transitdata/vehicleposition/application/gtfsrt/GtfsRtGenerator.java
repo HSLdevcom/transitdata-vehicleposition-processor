@@ -7,7 +7,7 @@ import fi.hsl.transitdata.vehicleposition.application.utils.RouteIdNormalizer;
 
 import java.util.Optional;
 
-import static fi.hsl.transitdata.vehicleposition.application.TimeUtils.getStartTime;
+import static fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils.getStartTime;
 
 public class GtfsRtGenerator {
     private GtfsRtGenerator() {}

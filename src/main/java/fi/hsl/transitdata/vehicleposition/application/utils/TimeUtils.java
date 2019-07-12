@@ -1,4 +1,4 @@
-package fi.hsl.transitdata.vehicleposition.application;
+package fi.hsl.transitdata.vehicleposition.application.utils;
 
 import fi.hsl.common.hfp.proto.Hfp;
 
@@ -7,8 +7,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.zone.ZoneRules;
-import java.util.Date;
 
 public class TimeUtils {
     private static final ZoneId TZ = ZoneId.of("Europe/Helsinki");
