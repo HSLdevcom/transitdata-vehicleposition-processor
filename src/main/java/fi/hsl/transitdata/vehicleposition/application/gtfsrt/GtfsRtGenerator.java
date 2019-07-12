@@ -40,7 +40,7 @@ public class GtfsRtGenerator {
                 .setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
                 .setDirectionId(hfpData.getTopic().getDirectionId() - 1)
                 .setRouteId(RouteIdNormalizer.normalizeRouteId(hfpData.getTopic().getRouteId()))
-                .setStartDate(hfpData.getPayload().getOday())
+                .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))
                 .setStartTime(startTime));
 
         if (hfpData.getPayload().getOccu() == 100) {
