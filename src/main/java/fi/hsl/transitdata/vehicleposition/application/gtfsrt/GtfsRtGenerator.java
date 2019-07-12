@@ -3,6 +3,7 @@ package fi.hsl.transitdata.vehicleposition.application.gtfsrt;
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.transitdata.vehicleposition.application.StopStatusProcessor;
+import fi.hsl.transitdata.vehicleposition.application.utils.RouteIdNormalizer;
 
 import java.util.Optional;
 
@@ -38,7 +39,7 @@ public class GtfsRtGenerator {
         vp.setTrip(GtfsRealtime.TripDescriptor.newBuilder()
                 .setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
                 .setDirectionId(hfpData.getTopic().getDirectionId() - 1)
-                .setRouteId(hfpData.getTopic().getRouteId())
+                .setRouteId(RouteIdNormalizer.normalizeRouteId(hfpData.getTopic().getRouteId()))
                 .setStartDate(hfpData.getPayload().getOday())
                 .setStartTime(startTime));
 
