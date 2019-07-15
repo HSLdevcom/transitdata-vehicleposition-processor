@@ -13,16 +13,19 @@ public class GtfsRtGenerator {
     private GtfsRtGenerator() {}
 
     public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, StopStatusProcessor.StopStatus stopStatus) {
-        //Ignore messages where the vehicle has no location or it has no stop status after reaching the final stop
-        if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong() || stopStatus == null) {
+        //Ignore messages where the vehicle has no location
+        if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong()) {
             return Optional.empty();
         }
 
         GtfsRealtime.VehiclePosition.Builder vp = GtfsRealtime.VehiclePosition.newBuilder();
 
         vp.setTimestamp(hfpData.getPayload().getTsi());
-        vp.setCurrentStatus(stopStatus.stopStatus);
-        vp.setStopId(stopStatus.stopId);
+        //Do not set stop status if the final stop has been reached or the next stop is outside HSL area
+        if (stopStatus != null) {
+            vp.setCurrentStatus(stopStatus.stopStatus);
+            vp.setStopId(stopStatus.stopId);
+        }
 
         vp.setPosition(GtfsRealtime.Position.newBuilder()
                 .setLatitude((float) hfpData.getPayload().getLat())

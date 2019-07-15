@@ -14,8 +14,8 @@ public class StopStatusProcessor {
     }
 
     private StopStatus processStopStatus(StopStatus previousStopStatus, Hfp.Data hfpData) {
-        //If vehicle has reached its final stop, remove it from the list
-        if ("EOL".equals(hfpData.getTopic().getNextStop())) {
+        //If vehicle has reached its final stop or left HSL area (next_stop being empty), remove it from the list
+        if ("EOL".equals(hfpData.getTopic().getNextStop()) || hfpData.getTopic().getNextStop().isEmpty()) {
             return null;
         }
 
