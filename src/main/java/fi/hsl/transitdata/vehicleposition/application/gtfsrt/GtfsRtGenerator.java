@@ -3,25 +3,29 @@ package fi.hsl.transitdata.vehicleposition.application.gtfsrt;
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.transitdata.vehicleposition.application.StopStatusProcessor;
+import fi.hsl.transitdata.vehicleposition.application.utils.RouteIdNormalizer;
 
 import java.util.Optional;
 
-import static fi.hsl.transitdata.vehicleposition.application.TimeUtils.getStartTime;
+import static fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils.getStartTime;
 
 public class GtfsRtGenerator {
     private GtfsRtGenerator() {}
 
     public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, StopStatusProcessor.StopStatus stopStatus) {
-        //Ignore messages where the vehicle has no location or it has no stop status after reaching the final stop
-        if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong() || stopStatus == null) {
+        //Ignore messages where the vehicle has no location
+        if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong()) {
             return Optional.empty();
         }
 
         GtfsRealtime.VehiclePosition.Builder vp = GtfsRealtime.VehiclePosition.newBuilder();
 
         vp.setTimestamp(hfpData.getPayload().getTsi());
-        vp.setCurrentStatus(stopStatus.stopStatus);
-        vp.setStopId(stopStatus.stopId);
+        //Do not set stop status if the final stop has been reached or the next stop is outside HSL area
+        if (stopStatus != null) {
+            vp.setCurrentStatus(stopStatus.stopStatus);
+            vp.setStopId(stopStatus.stopId);
+        }
 
         vp.setPosition(GtfsRealtime.Position.newBuilder()
                 .setLatitude((float) hfpData.getPayload().getLat())
@@ -38,8 +42,8 @@ public class GtfsRtGenerator {
         vp.setTrip(GtfsRealtime.TripDescriptor.newBuilder()
                 .setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
                 .setDirectionId(hfpData.getTopic().getDirectionId() - 1)
-                .setRouteId(hfpData.getTopic().getRouteId())
-                .setStartDate(hfpData.getPayload().getOday())
+                .setRouteId(RouteIdNormalizer.normalizeRouteId(hfpData.getTopic().getRouteId()))
+                .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))
                 .setStartTime(startTime));
 
         if (hfpData.getPayload().getOccu() == 100) {

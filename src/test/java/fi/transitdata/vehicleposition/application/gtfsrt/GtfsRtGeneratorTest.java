@@ -62,7 +62,7 @@ public class GtfsRtGeneratorTest {
         assertEquals(60, gtfsRtVp.getPosition().getBearing(), 0.001);
         assertEquals(10000, gtfsRtVp.getPosition().getOdometer(), 0.001);
         assertEquals("1/1", gtfsRtVp.getVehicle().getId());
-        assertEquals("2019-07-09", gtfsRtVp.getTrip().getStartDate());
+        assertEquals("20190709", gtfsRtVp.getTrip().getStartDate());
         assertEquals("09:30:00", gtfsRtVp.getTrip().getStartTime());
         assertEquals(0, gtfsRtVp.getTrip().getDirectionId());
         assertEquals("1999", gtfsRtVp.getTrip().getRouteId());

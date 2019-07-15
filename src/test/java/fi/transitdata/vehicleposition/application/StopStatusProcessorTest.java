@@ -70,4 +70,11 @@ public class StopStatusProcessorTest {
 
         assertNull(calculator.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "EOL", null)));
     }
+
+    @Test
+    public void testStopStatusNullIfNextStopIsEmpty() {
+        StopStatusProcessor processor = new StopStatusProcessor();
+
+        assertNull(processor.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "", null)));
+    }
 }

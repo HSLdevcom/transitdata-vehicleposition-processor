@@ -14,6 +14,11 @@ public class StopStatusProcessor {
     }
 
     private StopStatus processStopStatus(StopStatus previousStopStatus, Hfp.Data hfpData) {
+        //If vehicle has reached its final stop or left HSL area (next_stop being empty), remove it from the list
+        if ("EOL".equals(hfpData.getTopic().getNextStop()) || hfpData.getTopic().getNextStop().isEmpty()) {
+            return null;
+        }
+
         if (previousStopStatus == null || hfpData.getTopic().getEventType() == Hfp.Topic.EventType.PDE || hfpData.getTopic().getEventType() == Hfp.Topic.EventType.PAS) {
             //Set StopStatus to IN_TRANSIT_TO when a vehicle departs from a stop or passes through a stop
             return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
@@ -44,11 +49,6 @@ public class StopStatusProcessor {
                 //If next_stop has changed, the vehicle is in transit to the next stop
                 return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
             }
-        }
-
-        //If vehicle has reached its final stop, remove it from the list
-        if ("EOL".equals(hfpData.getTopic().getNextStop())) {
-            return null;
         }
 
         return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
