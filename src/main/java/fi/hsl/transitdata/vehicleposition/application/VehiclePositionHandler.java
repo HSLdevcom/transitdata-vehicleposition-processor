@@ -115,7 +115,7 @@ public class VehiclePositionHandler implements IMessageHandler {
     }
 
     private static String generateEntityId(Hfp.Data data) {
-        return data.getTopic().getUniqueVehicleId();
+        return "vehicle_position_"+data.getTopic().getUniqueVehicleId();
         //return String.join("_",data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), String.valueOf(data.getTopic().getDirectionId()));
     }
 
