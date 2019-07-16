@@ -41,6 +41,10 @@ public class VehiclePositionHandler implements IMessageHandler {
         stopStatusProcessor = new StopStatusProcessor();
 
         hfpQueueProcessor.scheduleWithFixedDelay(() -> {
+            long startTime = System.currentTimeMillis();
+            int messageCount = 0;
+            log.info("Processing HFP queue");
+
             Map<String, List<Hfp.Data>> copy;
             synchronized (hfpQueue) {
                 copy = new HashMap<>(hfpQueue);
@@ -54,6 +58,8 @@ public class VehiclePositionHandler implements IMessageHandler {
                 StopStatusProcessor.StopStatus currentStopStatus = null;
                 //Go through all HFP messages to find the current stop status
                 while (hfpIterator.hasNext()) {
+                    messageCount++;
+
                     data = hfpIterator.next();
                     currentStopStatus = stopStatusProcessor.getStopStatus(data);
                 }
@@ -68,6 +74,8 @@ public class VehiclePositionHandler implements IMessageHandler {
                     }
                 }
             }
+
+            log.info("HFP queue ({} messages) processed in {}ms", messageCount, System.currentTimeMillis() - startTime);
         }, HFP_PROCESSING_INTERVAL_MS, HFP_PROCESSING_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
 
@@ -83,6 +91,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PAS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
+                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType().toString());
                     return;
                 }
 
