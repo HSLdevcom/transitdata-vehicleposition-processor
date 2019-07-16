@@ -67,11 +67,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                 Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, currentStopStatus);
                 if (optionalVehiclePosition.isPresent()) {
                     GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
-                    try {
-                        sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
-                    } catch (PulsarClientException e) {
-                        log.error("Failed to send Pulsar message", e);
-                    }
+                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
                 }
             }
 
@@ -128,20 +124,25 @@ public class VehiclePositionHandler implements IMessageHandler {
                 .thenRun(() -> {});
     }
 
-    private void sendPulsarMessage(final String vehicleId, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) throws PulsarClientException {
-        try {
-            producer.newMessage()
-                    .key(vehicleId)
-                    .value(feedMessage.toByteArray())
-                    .eventTime(timestampMs)
-                    .property(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.GTFS_VehiclePosition.toString())
-                    .send();
-            log.debug("Produced a new position for vehicle {} with timestamp {}", vehicleId, timestampMs);
-        } catch (PulsarClientException e) {
-            log.error("Failed to send message to Pulsar", e);
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to handle vehicle position message", e);
-        }
+    private void sendPulsarMessage(final String vehicleId, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) {
+        producer.newMessage()
+            .key(vehicleId)
+            .value(feedMessage.toByteArray())
+            .eventTime(timestampMs)
+            .property(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.GTFS_VehiclePosition.toString())
+            .sendAsync()
+            .whenComplete((messageId, error) -> {
+                if (error != null) {
+                    if (error instanceof PulsarClientException) {
+                        log.error("Failed to send message to Pulsar", error);
+                    } else {
+                        log.error("Failed to handle vehicle position message", error);
+                    }
+                }
+
+                if (messageId != null) {
+                    log.debug("Produced a new position for vehicle {} with timestamp {}", vehicleId, timestampMs);
+                }
+            });
     }
 }
