@@ -14,15 +14,12 @@ import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.Optional;
 
 public class VehiclePositionHandler implements IMessageHandler {
     private static final Logger log = LoggerFactory.getLogger(VehiclePositionHandler.class);
 
-    private static final long HFP_PROCESSING_INTERVAL_MS = 500;
+    private static final int LOG_THRESHOLD = 1000;
 
     private final Consumer<byte[]> consumer;
     private final Producer<byte[]> producer;
@@ -30,8 +27,8 @@ public class VehiclePositionHandler implements IMessageHandler {
 
     private final StopStatusProcessor stopStatusProcessor;
 
-    private final Map<String, List<Hfp.Data>> hfpQueue = new HashMap<>(1000);
-    private final ScheduledExecutorService hfpQueueProcessor = Executors.newSingleThreadScheduledExecutor();
+    private long messagesProcessed = 0;
+    private long messageProcessingStartTime = System.currentTimeMillis();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -39,40 +36,6 @@ public class VehiclePositionHandler implements IMessageHandler {
         config = context.getConfig();
 
         stopStatusProcessor = new StopStatusProcessor();
-
-        hfpQueueProcessor.scheduleWithFixedDelay(() -> {
-            long startTime = System.currentTimeMillis();
-            int messageCount = 0;
-            log.info("Processing HFP queue");
-
-            Map<String, List<Hfp.Data>> copy;
-            synchronized (hfpQueue) {
-                copy = new HashMap<>(hfpQueue);
-                hfpQueue.clear();
-            }
-
-            for (String vehicle : copy.keySet()) {
-                Iterator<Hfp.Data> hfpIterator = copy.get(vehicle).iterator();
-                Hfp.Data data = null;
-
-                StopStatusProcessor.StopStatus currentStopStatus = null;
-                //Go through all HFP messages to find the current stop status
-                while (hfpIterator.hasNext()) {
-                    messageCount++;
-
-                    data = hfpIterator.next();
-                    currentStopStatus = stopStatusProcessor.getStopStatus(data);
-                }
-
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, currentStopStatus);
-                if (optionalVehiclePosition.isPresent()) {
-                    GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
-                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
-                }
-            }
-
-            log.info("HFP queue ({} messages) processed in {}ms", messageCount, System.currentTimeMillis() - startTime);
-        }, HFP_PROCESSING_INTERVAL_MS, HFP_PROCESSING_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -91,14 +54,11 @@ public class VehiclePositionHandler implements IMessageHandler {
                     return;
                 }
 
-                synchronized (hfpQueue) {
-                    hfpQueue.compute(data.getTopic().getUniqueVehicleId(), (key, list) ->  {
-                        if (list == null) {
-                            list = new LinkedList<>();
-                        }
-                        list.add(data);
-                        return list;
-                    });
+                StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus);
+                if (optionalVehiclePosition.isPresent()) {
+                    GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
+                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
                 }
             } else {
                 log.warn("Invalid protobuf schema, expecting HfpData");
@@ -107,6 +67,11 @@ public class VehiclePositionHandler implements IMessageHandler {
             log.error("Exception while handling message", e);
         } finally {
             ack(message.getMessageId());
+
+            if (++messagesProcessed % LOG_THRESHOLD == 0) {
+                log.info("{} messages processed in {}ms", LOG_THRESHOLD, System.currentTimeMillis() - messageProcessingStartTime);
+                messageProcessingStartTime = System.currentTimeMillis();
+            }
         }
     }
 
