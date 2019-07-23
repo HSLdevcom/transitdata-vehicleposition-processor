@@ -40,7 +40,8 @@ public class GtfsRtGenerator {
         String startTime = getStartTime(hfpData);
 
         vp.setTrip(GtfsRealtime.TripDescriptor.newBuilder()
-                .setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
+                //TODO: figure out how to set schedule relationship correctly
+                //.setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
                 .setDirectionId(hfpData.getTopic().getDirectionId() - 1)
                 .setRouteId(RouteIdNormalizer.normalizeRouteId(hfpData.getTopic().getRouteId()))
                 .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))

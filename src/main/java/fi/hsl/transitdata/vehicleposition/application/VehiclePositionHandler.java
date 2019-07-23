@@ -14,15 +14,12 @@ import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.Optional;
 
 public class VehiclePositionHandler implements IMessageHandler {
     private static final Logger log = LoggerFactory.getLogger(VehiclePositionHandler.class);
 
-    private static final long HFP_PROCESSING_INTERVAL_MS = 500;
+    private static final int LOG_THRESHOLD = 1000;
 
     private final Consumer<byte[]> consumer;
     private final Producer<byte[]> producer;
@@ -30,8 +27,8 @@ public class VehiclePositionHandler implements IMessageHandler {
 
     private final StopStatusProcessor stopStatusProcessor;
 
-    private final Map<String, List<Hfp.Data>> hfpQueue = new HashMap<>(1000);
-    private final ScheduledExecutorService hfpQueueProcessor = Executors.newSingleThreadScheduledExecutor();
+    private long messagesProcessed = 0;
+    private long messageProcessingStartTime = System.currentTimeMillis();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -39,36 +36,6 @@ public class VehiclePositionHandler implements IMessageHandler {
         config = context.getConfig();
 
         stopStatusProcessor = new StopStatusProcessor();
-
-        hfpQueueProcessor.scheduleWithFixedDelay(() -> {
-            Map<String, List<Hfp.Data>> copy;
-            synchronized (hfpQueue) {
-                copy = new HashMap<>(hfpQueue);
-                hfpQueue.clear();
-            }
-
-            for (String vehicle : copy.keySet()) {
-                Iterator<Hfp.Data> hfpIterator = copy.get(vehicle).iterator();
-                Hfp.Data data = null;
-
-                StopStatusProcessor.StopStatus currentStopStatus = null;
-                //Go through all HFP messages to find the current stop status
-                while (hfpIterator.hasNext()) {
-                    data = hfpIterator.next();
-                    currentStopStatus = stopStatusProcessor.getStopStatus(data);
-                }
-
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, currentStopStatus);
-                if (optionalVehiclePosition.isPresent()) {
-                    GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
-                    try {
-                        sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
-                    } catch (PulsarClientException e) {
-                        log.error("Failed to send Pulsar message", e);
-                    }
-                }
-            }
-        }, HFP_PROCESSING_INTERVAL_MS, HFP_PROCESSING_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -83,17 +50,15 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PAS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
+                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType().toString());
                     return;
                 }
 
-                synchronized (hfpQueue) {
-                    hfpQueue.compute(data.getTopic().getUniqueVehicleId(), (key, list) ->  {
-                        if (list == null) {
-                            list = new LinkedList<>();
-                        }
-                        list.add(data);
-                        return list;
-                    });
+                StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus);
+                if (optionalVehiclePosition.isPresent()) {
+                    GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
+                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
                 }
             } else {
                 log.warn("Invalid protobuf schema, expecting HfpData");
@@ -102,11 +67,16 @@ public class VehiclePositionHandler implements IMessageHandler {
             log.error("Exception while handling message", e);
         } finally {
             ack(message.getMessageId());
+
+            if (++messagesProcessed % LOG_THRESHOLD == 0) {
+                log.info("{} messages processed in {}ms", LOG_THRESHOLD, System.currentTimeMillis() - messageProcessingStartTime);
+                messageProcessingStartTime = System.currentTimeMillis();
+            }
         }
     }
 
     private static String generateEntityId(Hfp.Data data) {
-        return data.getTopic().getUniqueVehicleId();
+        return "vehicle_position_"+data.getTopic().getUniqueVehicleId();
         //return String.join("_",data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), String.valueOf(data.getTopic().getDirectionId()));
     }
 
@@ -119,20 +89,25 @@ public class VehiclePositionHandler implements IMessageHandler {
                 .thenRun(() -> {});
     }
 
-    private void sendPulsarMessage(final String vehicleId, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) throws PulsarClientException {
-        try {
-            producer.newMessage()
-                    .key(vehicleId)
-                    .value(feedMessage.toByteArray())
-                    .eventTime(timestampMs)
-                    .property(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.GTFS_VehiclePosition.toString())
-                    .send();
-            log.debug("Produced a new position for vehicle {} with timestamp {}", vehicleId, timestampMs);
-        } catch (PulsarClientException e) {
-            log.error("Failed to send message to Pulsar", e);
-            throw e;
-        } catch (Exception e) {
-            log.error("Failed to handle vehicle position message", e);
-        }
+    private void sendPulsarMessage(final String vehicleId, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) {
+        producer.newMessage()
+            .key(vehicleId)
+            .value(feedMessage.toByteArray())
+            .eventTime(timestampMs)
+            .property(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.GTFS_VehiclePosition.toString())
+            .sendAsync()
+            .whenComplete((messageId, error) -> {
+                if (error != null) {
+                    if (error instanceof PulsarClientException) {
+                        log.error("Failed to send message to Pulsar", error);
+                    } else {
+                        log.error("Failed to handle vehicle position message", error);
+                    }
+                }
+
+                if (messageId != null) {
+                    log.debug("Produced a new position for vehicle {} with timestamp {}", vehicleId, timestampMs);
+                }
+            });
     }
 }

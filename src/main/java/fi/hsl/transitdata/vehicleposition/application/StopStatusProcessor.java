@@ -34,10 +34,9 @@ public class StopStatusProcessor {
             return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT);
         }
 
-        //If a vehicle was arriving to a stop and the stop id in payload has not changed, return previous status
+        //If a vehicle was arriving to a stop and the stop id in the topic has not changed, return previous status
         if (previousStopStatus.stopStatus == GtfsRealtime.VehiclePosition.VehicleStopStatus.INCOMING_AT &&
-                hfpData.getPayload().hasStop() &&
-                String.valueOf(hfpData.getPayload().getStop()).equals(previousStopStatus.stopId)) {
+                hfpData.getTopic().getNextStop().equals(previousStopStatus.stopId)) {
             return previousStopStatus;
         }
 
