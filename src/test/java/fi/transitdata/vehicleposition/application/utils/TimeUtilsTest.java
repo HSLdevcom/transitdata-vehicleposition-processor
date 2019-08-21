@@ -18,6 +18,21 @@ public class TimeUtilsTest {
     }
 
     @Test
+    public void testFormatTime1() {
+        assertEquals("09:48:00", TimeUtils.formatTime(35280));
+    }
+
+    @Test
+    public void testFormatTime2() {
+        assertEquals("11:05:00", TimeUtils.formatTime(39900));
+    }
+
+    @Test
+    public void testFormatTime3() {
+        assertEquals("12:25:00", TimeUtils.formatTime(44700));
+    }
+
+    @Test
     public void testGetStartTimeSameDay() {
         Hfp.Data data = Hfp.Data.newBuilder()
             .setSchemaVersion(1)
