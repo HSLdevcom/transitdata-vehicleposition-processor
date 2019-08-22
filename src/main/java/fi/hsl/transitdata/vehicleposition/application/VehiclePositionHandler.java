@@ -13,6 +13,7 @@ import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MarkerFactory;
 
 import java.util.Optional;
 
@@ -51,6 +52,11 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
                     log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType().toString());
+                    return;
+                }
+
+                if (data.getPayload().getTsi() * 1000 > message.getEventTime()) {
+                    log.warn(MarkerFactory.getMarker("VEHICLE_TIMESTAMP_IN_FUTURE"), "Vehicle {} had timestamp {} seconds in future", data.getTopic().getUniqueVehicleId(), data.getPayload().getTsi() - message.getEventTime() / 1000);
                     return;
                 }
 
