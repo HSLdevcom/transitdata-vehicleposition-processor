@@ -10,6 +10,7 @@ import fi.hsl.common.pulsar.PulsarApplicationContext;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
+import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final Producer<byte[]> producer;
     private final Config config;
 
+    private final TripVehicleCache tripVehicleCache;
     private final StopStatusProcessor stopStatusProcessor;
 
     private long messagesProcessed = 0;
@@ -35,6 +37,7 @@ public class VehiclePositionHandler implements IMessageHandler {
         producer = context.getProducer();
         config = context.getConfig();
 
+        tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
     }
 
@@ -51,6 +54,12 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
                     log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType().toString());
+                    return;
+                }
+
+                //If some other vehicle was registered for the trip, do not produce vehicle position
+                if (!tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir())) {
+                    log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
                     return;
                 }
 
