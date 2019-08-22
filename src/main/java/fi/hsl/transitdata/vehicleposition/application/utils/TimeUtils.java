@@ -28,11 +28,25 @@ public class TimeUtils {
                 startTime += 86400;
             }
 
-            return (startTime / 3600) + ":" + ((startTime % 3600) / 60) + ":00";
+            return formatTime(startTime);
         }
     }
 
     public static int hhMmToSeconds(String hhMm) {
         return Integer.parseInt(hhMm.substring(0, 2)) * 60 * 60 + Integer.parseInt(hhMm.substring(3, 5)) * 60;
+    }
+
+    public static String formatTime(int time) {
+        String hours = String.valueOf(time / 3600);
+        if (hours.length() < 2) {
+            hours = "0"+hours;
+        }
+
+        String minutes = String.valueOf((time % 3600) / 60);
+        if (minutes.length() < 2) {
+            minutes = "0"+minutes;
+        }
+
+        return String.join(":", hours, minutes, "00");
     }
 }
