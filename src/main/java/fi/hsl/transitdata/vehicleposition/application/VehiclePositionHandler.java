@@ -14,6 +14,7 @@ import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MarkerFactory;
 
 import java.util.Optional;
 
@@ -60,6 +61,11 @@ public class VehiclePositionHandler implements IMessageHandler {
                 //If some other vehicle was registered for the trip, do not produce vehicle position
                 if (!tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir())) {
                     log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
+                    return;
+                }
+              
+                if (data.getPayload().getTsi() * 1000 > message.getEventTime()) {
+                    log.warn(MarkerFactory.getMarker("VEHICLE_TIMESTAMP_IN_FUTURE"), "Vehicle {} had timestamp {} seconds in future", data.getTopic().getUniqueVehicleId(), data.getPayload().getTsi() - message.getEventTime() / 1000);
                     return;
                 }
 
