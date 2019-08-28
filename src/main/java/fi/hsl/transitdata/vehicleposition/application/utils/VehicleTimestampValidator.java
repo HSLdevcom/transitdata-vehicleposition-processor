@@ -21,9 +21,9 @@ public class VehicleTimestampValidator {
     }
 
     public boolean validateTimestamp(Hfp.Data hfpData, long pulsarEventTimeMs) {
-        long timeDifferenceSeconds = Math.abs(pulsarEventTimeMs / 1000 - hfpData.getPayload().getTsi());
+        long timeDifferenceSeconds = hfpData.getPayload().getTsi() - pulsarEventTimeMs / 1000;
 
-        if (timeDifferenceSeconds < maxTimeDifferenceSeconds) {
+        if (timeDifferenceSeconds <= maxTimeDifferenceSeconds) {
             //Only publish vehicle position with latest timestamp
             return vehicleTimestamps.compute(hfpData.getTopic().getUniqueVehicleId(), (key, value) -> {
                 if (value == null || value < hfpData.getPayload().getTsi()) {
@@ -33,8 +33,8 @@ public class VehicleTimestampValidator {
                 }
             }) == hfpData.getPayload().getTsi();
         } else {
-            //Discard vehicle positions if timestamp is too much in the past or the future
-            log.warn("Vehicle {} had timestamp {} seconds different from current time (vehicle: {}, current time: {})", hfpData.getTopic().getUniqueVehicleId(), timeDifferenceSeconds, hfpData.getPayload().getTsi(), pulsarEventTimeMs / 1000);
+            //Discard vehicle positions if timestamp is too much in the future
+            log.warn("Vehicle {} had timestamp {} seconds in future (vehicle: {}, current time: {})", hfpData.getTopic().getUniqueVehicleId(), timeDifferenceSeconds, hfpData.getPayload().getTsi(), pulsarEventTimeMs / 1000);
             return false;
         }
     }
