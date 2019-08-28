@@ -39,29 +39,6 @@ public class VehicleTimestampValidatorTest {
     }
 
     @Test
-    public void testVehiclePositionWithTimestampInPastIsIgnored() {
-        Hfp.Data data = Hfp.Data.newBuilder()
-                .setSchemaVersion(1)
-                .setTopic(Hfp.Topic.newBuilder()
-                        .setSchemaVersion(1)
-                        .setUniqueVehicleId("1/1")
-                        .setReceivedAt(0)
-                        .setTopicPrefix("hfp")
-                        .setTopicVersion("v2")
-                        .setJourneyType(Hfp.Topic.JourneyType.journey)
-                        .setTemporalType(Hfp.Topic.TemporalType.ongoing)
-                        .setOperatorId(1)
-                        .setVehicleNumber(1))
-                .setPayload(Hfp.Payload.newBuilder()
-                        .setSchemaVersion(1)
-                        .setTst("")
-                        .setTsi(3))
-                .build();
-
-        assertFalse(validator.validateTimestamp(data, 10000));
-    }
-
-    @Test
     public void testVehiclePositionWithOlderTimestampThanPreviousIsIgnored() {
         Hfp.Data data1 = Hfp.Data.newBuilder()
                 .setSchemaVersion(1)
