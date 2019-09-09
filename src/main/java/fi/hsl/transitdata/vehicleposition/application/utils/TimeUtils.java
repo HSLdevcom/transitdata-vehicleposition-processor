@@ -24,7 +24,7 @@ public class TimeUtils {
             int tstTime = hhMmToSeconds(timeZonedTst.substring(11, 16));
             int startTime = hhMmToSeconds(data.getPayload().getStart());
 
-            if (startTime < tstTime) {
+            if (startTime <= tstTime) {
                 startTime += 86400;
             }
 
