@@ -10,6 +10,10 @@ import static org.junit.Assert.assertNull;
 
 public class StopStatusProcessorTest {
     private Hfp.Data generateHfpData(Hfp.Topic.EventType eventType, String nextStop, String payloadStop) {
+        return generateHfpData(eventType, Hfp.Topic.TransportMode.bus, nextStop, payloadStop);
+    }
+
+    private Hfp.Data generateHfpData(Hfp.Topic.EventType eventType, Hfp.Topic.TransportMode transportMode, String nextStop, String payloadStop) {
         Hfp.Payload.Builder payload = Hfp.Payload.newBuilder();
             payload.setSchemaVersion(1);
             payload.setTst("");
@@ -27,6 +31,7 @@ public class StopStatusProcessorTest {
                         .setTopicVersion("v2")
                         .setJourneyType(Hfp.Topic.JourneyType.journey)
                         .setTemporalType(Hfp.Topic.TemporalType.ongoing)
+                        .setTransportMode(transportMode)
                         .setOperatorId(1)
                         .setVehicleNumber(1)
                         .setUniqueVehicleId("1/1")
@@ -76,5 +81,18 @@ public class StopStatusProcessorTest {
         StopStatusProcessor processor = new StopStatusProcessor();
 
         assertNull(processor.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, "", null)));
+    }
+
+    @Test
+    public void testStopStatusWithMetro() {
+        StopStatusProcessor processor = new StopStatusProcessor();
+
+        StopStatusProcessor.StopStatus stoppedAtStop1 = processor.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, Hfp.Topic.TransportMode.metro, "1", "1"));
+        assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT, stoppedAtStop1.stopStatus);
+        assertEquals("1", stoppedAtStop1.stopId);
+
+        StopStatusProcessor.StopStatus inTransitToStop2 = processor.getStopStatus(generateHfpData(Hfp.Topic.EventType.VP, Hfp.Topic.TransportMode.metro, "2", null));
+        assertEquals(GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO, inTransitToStop2.stopStatus);
+        assertEquals("2", inTransitToStop2.stopId);
     }
 }
