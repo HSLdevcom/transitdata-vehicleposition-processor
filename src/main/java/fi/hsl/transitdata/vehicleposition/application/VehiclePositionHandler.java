@@ -51,6 +51,11 @@ public class VehiclePositionHandler implements IMessageHandler {
             if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
+                //Ignore HFP messages that are not sent from vehicles on a journey
+                if (data.getTopic().getJourneyType() != Hfp.Topic.JourneyType.journey) {
+                    return;
+                }
+
                 //Ignore events that are not relevant to calculating stop status
                 if (data.getTopic().getEventType() != Hfp.Topic.EventType.VP &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.DUE &&
