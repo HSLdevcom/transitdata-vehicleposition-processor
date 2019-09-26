@@ -56,6 +56,11 @@ public class VehiclePositionHandler implements IMessageHandler {
                     return;
                 }
 
+                //Ignore HFP messages that are not sent from vehicles on an ongoing journey
+                if (data.getTopic().getTemporalType() != Hfp.Topic.TemporalType.ongoing) {
+                    return;
+                }
+
                 //Ignore events that are not relevant to calculating stop status
                 if (data.getTopic().getEventType() != Hfp.Topic.EventType.VP &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.DUE &&
