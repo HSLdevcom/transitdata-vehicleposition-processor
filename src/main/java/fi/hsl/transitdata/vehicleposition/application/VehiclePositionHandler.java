@@ -11,12 +11,13 @@ import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
+import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MarkerFactory;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 public class VehiclePositionHandler implements IMessageHandler {
     private static final Logger log = LoggerFactory.getLogger(VehiclePositionHandler.class);
@@ -29,6 +30,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
     private final TripVehicleCache tripVehicleCache;
     private final StopStatusProcessor stopStatusProcessor;
+    private final VehicleTimestampValidator vehicleTimestampValidator;
 
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
@@ -40,6 +42,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
         tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
+        vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
     }
 
     @Override
@@ -47,6 +50,16 @@ public class VehiclePositionHandler implements IMessageHandler {
         try {
             if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
+
+                //Ignore HFP messages that are not sent from vehicles on a journey
+                if (data.getTopic().getJourneyType() != Hfp.Topic.JourneyType.journey) {
+                    return;
+                }
+
+                //Ignore HFP messages that are not sent from vehicles on an ongoing journey
+                if (data.getTopic().getTemporalType() != Hfp.Topic.TemporalType.ongoing) {
+                    return;
+                }
 
                 //Ignore events that are not relevant to calculating stop status
                 if (data.getTopic().getEventType() != Hfp.Topic.EventType.VP &&
@@ -63,9 +76,9 @@ public class VehiclePositionHandler implements IMessageHandler {
                     log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
                     return;
                 }
-              
-                if (data.getPayload().getTsi() * 1000 > message.getEventTime()) {
-                    log.warn(MarkerFactory.getMarker("VEHICLE_TIMESTAMP_IN_FUTURE"), "Vehicle {} had timestamp {} seconds in future", data.getTopic().getUniqueVehicleId(), data.getPayload().getTsi() - message.getEventTime() / 1000);
+
+                if (!vehicleTimestampValidator.validateTimestamp(data, message.getEventTime())) {
+                    //Vehicle had invalid timestamp..
                     return;
                 }
 
