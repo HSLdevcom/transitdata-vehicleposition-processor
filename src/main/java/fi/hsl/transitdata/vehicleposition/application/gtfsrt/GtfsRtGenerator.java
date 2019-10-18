@@ -13,11 +13,6 @@ public class GtfsRtGenerator {
     private GtfsRtGenerator() {}
 
     public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, StopStatusProcessor.StopStatus stopStatus) {
-        //Ignore messages where the vehicle has no location
-        if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong()) {
-            return Optional.empty();
-        }
-
         GtfsRealtime.VehiclePosition.Builder vp = GtfsRealtime.VehiclePosition.newBuilder();
 
         vp.setTimestamp(hfpData.getPayload().getTsi());
@@ -27,12 +22,16 @@ public class GtfsRtGenerator {
             vp.setStopId(stopStatus.stopId);
         }
 
-        vp.setPosition(GtfsRealtime.Position.newBuilder()
-                .setLatitude((float) hfpData.getPayload().getLat())
-                .setLongitude((float) hfpData.getPayload().getLong())
-                .setSpeed((float) hfpData.getPayload().getSpd())
-                .setBearing(hfpData.getPayload().getHdg())
-                .setOdometer(hfpData.getPayload().getOdo()));
+        //If there is no GPS fix, do not add position data to GTFS-RT VP message.
+        //Google seems to use VP messages to calculate arrival/departure time predictions, so we want to send them vehicle's stop status even if its position is unknown
+        if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong()) {
+            vp.setPosition(GtfsRealtime.Position.newBuilder()
+                    .setLatitude((float) hfpData.getPayload().getLat())
+                    .setLongitude((float) hfpData.getPayload().getLong())
+                    .setSpeed((float) hfpData.getPayload().getSpd())
+                    .setBearing(hfpData.getPayload().getHdg())
+                    .setOdometer(hfpData.getPayload().getOdo()));
+        }
 
         vp.setVehicle(GtfsRealtime.VehicleDescriptor.newBuilder()
                 .setId(hfpData.getTopic().getUniqueVehicleId()));

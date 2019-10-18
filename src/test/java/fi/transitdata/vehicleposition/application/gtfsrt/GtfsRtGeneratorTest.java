@@ -10,7 +10,7 @@ import static com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleSt
 import static org.junit.Assert.*;
 
 public class GtfsRtGeneratorTest {
-    @Test
+    /*@Test
     public void testNoVehiclePositionGeneratedIfNoLocation() {
         Hfp.Data data = Hfp.Data.newBuilder()
                             .setSchemaVersion(1)
@@ -21,7 +21,7 @@ public class GtfsRtGeneratorTest {
                             .build();
 
         assertFalse(GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO)).isPresent());
-    }
+    }*/
 
     @Test
     public void testGtfsRtVehiclePositionHasCorrectValues() {
