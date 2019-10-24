@@ -71,6 +71,12 @@ public class VehiclePositionHandler implements IMessageHandler {
                     return;
                 }
 
+                //Ignore data from metro units other than the first
+                //Note that using tripVehicleCache would also produce one GTFS-RT vehicle position from multiple metro units, but we want to produce positions from the first unit
+                if (data.getTopic().getTransportMode() == Hfp.Topic.TransportMode.metro && data.getPayload().hasSeq() && data.getPayload().getSeq() != 1) {
+                    return;
+                }
+
                 //If some other vehicle was registered for the trip, do not produce vehicle position
                 if (!tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir())) {
                     log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
