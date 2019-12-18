@@ -21,7 +21,7 @@ public class TimeUtils {
 
         if (oday.equals(tstDay) &&
                 //If start time would be more than 12 hours in the past, assume that the trip begins on the following day
-                startTimeOday.until(timeZonedTst, ChronoUnit.HOURS) <= -12) {
+                startTimeOday.until(timeZonedTst, ChronoUnit.MINUTES) <= 12 * 60) {
             return data.getPayload().getStart()+":00";
         } else {
             int tstTime = hhMmToSeconds(formattedTimeZonedTst.substring(11, 16));
