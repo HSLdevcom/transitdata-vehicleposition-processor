@@ -2,26 +2,29 @@ package fi.hsl.transitdata.vehicleposition.application.utils;
 
 import fi.hsl.common.hfp.proto.Hfp;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 public class TimeUtils {
     private static final ZoneId TZ = ZoneId.of("Europe/Helsinki");
 
     public static String getStartTime(Hfp.Data data) {
         //Implementation based on https://digitransit.fi/en/developers/apis/1-routing-api/routes/#a-namefuzzytripaquery-a-trip-without-its-id
-        final String timeZonedTst = ZonedDateTime.ofInstant(Instant.ofEpochSecond(data.getPayload().getTsi()), ZoneOffset.UTC).withZoneSameInstant(TZ).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        final ZonedDateTime timeZonedTst = ZonedDateTime.ofInstant(Instant.ofEpochSecond(data.getPayload().getTsi()), ZoneOffset.UTC).withZoneSameInstant(TZ);
+        final String formattedTimeZonedTst = timeZonedTst.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
         final String oday = data.getPayload().getOday();
-        final String tstDay = timeZonedTst.substring(0, 10);
+        final String tstDay = formattedTimeZonedTst.substring(0, 10);
 
-        if (oday.equals(tstDay)) {
+        final ZonedDateTime startTimeOday = LocalDate.parse(oday).atStartOfDay(TZ).plus(hhMmToSeconds(data.getPayload().getStart()), ChronoUnit.SECONDS);
+
+        if (oday.equals(tstDay) &&
+                //If start time would be more than 12 hours in the past, assume that the trip begins on the following day
+                startTimeOday.until(timeZonedTst, ChronoUnit.HOURS) <= -12) {
             return data.getPayload().getStart()+":00";
         } else {
-            int tstTime = hhMmToSeconds(timeZonedTst.substring(11, 16));
+            int tstTime = hhMmToSeconds(formattedTimeZonedTst.substring(11, 16));
             int startTime = hhMmToSeconds(data.getPayload().getStart());
 
             if (startTime <= tstTime) {
