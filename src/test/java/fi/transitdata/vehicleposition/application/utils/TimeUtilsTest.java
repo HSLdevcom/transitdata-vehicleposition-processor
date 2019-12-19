@@ -76,4 +76,19 @@ public class TimeUtilsTest {
 
         assertEquals("23:55:00", TimeUtils.getStartTime(data));
     }
+
+    @Test
+    public void testGetStartTimeForTripStartingInNextDay() {
+        Hfp.Data data = Hfp.Data.newBuilder()
+                .setSchemaVersion(1)
+                .setPayload(Hfp.Payload.newBuilder()
+                        .setSchemaVersion(1)
+                        .setOday("2019-12-17")
+                        .setTst("2019-12-17T21:55:25.000Z")
+                        .setTsi(1561683025)
+                        .setStart("00:05"))
+                .build();
+
+        assertEquals("24:05:00", TimeUtils.getStartTime(data));
+    }
 }
