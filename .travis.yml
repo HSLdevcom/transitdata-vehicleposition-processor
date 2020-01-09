@@ -27,7 +27,12 @@ before_install:
   - docker --version
   - echo "ENV GIT_COMMIT ${TRAVIS_COMMIT}" >> Dockerfile
 
+cache:
+  directories:
+    - ~/.m2
+
 script:
+  - mvn -f pom.xml clean install
   - set -e
   - ./.travis/check_semver
   - docker build --tag "${DOCKER_LOCAL}" .
