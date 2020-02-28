@@ -19,8 +19,8 @@ public class StopStatusProcessor {
             return null;
         }
 
-        if (hfpData.getTopic().getTransportMode() == Hfp.Topic.TransportMode.metro) {
-            return processMetroStopStatus(hfpData);
+        if (hfpData.getTopic().getTransportMode() == Hfp.Topic.TransportMode.metro || hfpData.getTopic().getTransportMode() == Hfp.Topic.TransportMode.ferry) {
+            return processStopStatusWithoutEvents(hfpData);
         }
 
         if (previousStopStatus == null || hfpData.getTopic().getEventType() == Hfp.Topic.EventType.PDE || hfpData.getTopic().getEventType() == Hfp.Topic.EventType.PAS) {
@@ -57,13 +57,14 @@ public class StopStatusProcessor {
         return new StopStatus(hfpData.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
     }
 
-    private StopStatus processMetroStopStatus(Hfp.Data data) {
+    private StopStatus processStopStatusWithoutEvents(Hfp.Data data) {
         if (data.getPayload().hasStop() && String.valueOf(data.getPayload().getStop()).equals(data.getTopic().getNextStop())) {
             return new StopStatus(String.valueOf(data.getPayload().getStop()), GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT);
         } else {
             return new StopStatus(data.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
         }
     }
+
     public static class StopStatus {
         public final String stopId;
         public final GtfsRealtime.VehiclePosition.VehicleStopStatus stopStatus;
