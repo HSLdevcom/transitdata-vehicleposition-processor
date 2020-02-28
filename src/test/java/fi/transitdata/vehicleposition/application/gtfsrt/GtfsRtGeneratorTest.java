@@ -68,4 +68,52 @@ public class GtfsRtGeneratorTest {
         assertEquals("1999", gtfsRtVp.getTrip().getRouteId());
         assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL, gtfsRtVp.getOccupancyStatus());
     }
+
+    @Test
+    public void testGtfsRtVehiclePositionHasCorrectValuesWithLabel() {
+        Hfp.Data data = Hfp.Data.newBuilder()
+                .setSchemaVersion(1)
+                .setTopic(Hfp.Topic.newBuilder()
+                        .setSchemaVersion(1)
+                        .setReceivedAt(0)
+                        .setTopicPrefix("hfp")
+                        .setTopicVersion("v2")
+                        .setJourneyType(Hfp.Topic.JourneyType.journey)
+                        .setTemporalType(Hfp.Topic.TemporalType.ongoing)
+                        .setOperatorId(1)
+                        .setVehicleNumber(1)
+                        .setUniqueVehicleId("1/1")
+                        .setDirectionId(1)
+                        .setRouteId("1999"))
+                .setPayload(Hfp.Payload.newBuilder()
+                        .setSchemaVersion(1)
+                        .setLat(60)
+                        .setLong(25)
+                        .setSpd(10)
+                        .setHdg(60)
+                        .setOdo(10000)
+                        .setTsi(1562655000)
+                        .setTst("2019-07-09T06:50:00.000Z")
+                        .setOday("2019-07-09")
+                        .setStart("09:30")
+                        .setLabel("SUOMENLINNA II")
+                        .setOccu(100))
+                .build();
+
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO)).get();
+
+        assertEquals(1562655000, gtfsRtVp.getTimestamp());
+        assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);
+        assertEquals(25, gtfsRtVp.getPosition().getLongitude(), 0.001);
+        assertEquals(10, gtfsRtVp.getPosition().getSpeed(), 0.001);
+        assertEquals(60, gtfsRtVp.getPosition().getBearing(), 0.001);
+        assertEquals(10000, gtfsRtVp.getPosition().getOdometer(), 0.001);
+        assertEquals("1/1", gtfsRtVp.getVehicle().getId());
+        assertEquals("20190709", gtfsRtVp.getTrip().getStartDate());
+        assertEquals("09:30:00", gtfsRtVp.getTrip().getStartTime());
+        assertEquals(0, gtfsRtVp.getTrip().getDirectionId());
+        assertEquals("1999", gtfsRtVp.getTrip().getRouteId());
+        assertEquals("SUOMENLINNA II", gtfsRtVp.getVehicle().getLabel());
+        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL, gtfsRtVp.getOccupancyStatus());
+    }
 }
