@@ -3,10 +3,16 @@ package fi.hsl.transitdata.vehicleposition.application;
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class StopStatusProcessor {
+    private static final List<Hfp.Topic.TransportMode> TRANSPORT_MODES_WITHOUT_EVENTS = Collections.unmodifiableList(Arrays.asList(
+            Hfp.Topic.TransportMode.metro,
+            Hfp.Topic.TransportMode.ferry,
+            Hfp.Topic.TransportMode.ubus,
+            Hfp.Topic.TransportMode.robot
+    ));
+
     private final Map<String, StopStatus> vehicleStopStatus = new HashMap<>(1000);
 
     public StopStatus getStopStatus(Hfp.Data hfpData) {
@@ -19,7 +25,8 @@ public class StopStatusProcessor {
             return null;
         }
 
-        if (hfpData.getTopic().getTransportMode() == Hfp.Topic.TransportMode.metro || hfpData.getTopic().getTransportMode() == Hfp.Topic.TransportMode.ferry) {
+        //If vehicle does not produce events, use simpler method for determining stop status
+        if (TRANSPORT_MODES_WITHOUT_EVENTS.contains(hfpData.getTopic().getTransportMode())) {
             return processStopStatusWithoutEvents(hfpData);
         }
 
@@ -59,8 +66,10 @@ public class StopStatusProcessor {
 
     private StopStatus processStopStatusWithoutEvents(Hfp.Data data) {
         if (data.getPayload().hasStop() && String.valueOf(data.getPayload().getStop()).equals(data.getTopic().getNextStop())) {
+            //If the vehicle is near a stop, its payload contains a stop ID -> assume that the vehicle is stopped at the stop
             return new StopStatus(String.valueOf(data.getPayload().getStop()), GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT);
         } else {
+            //Otherwise assume that the vehicle is in transit to the next stop
             return new StopStatus(data.getTopic().getNextStop(), GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO);
         }
     }
