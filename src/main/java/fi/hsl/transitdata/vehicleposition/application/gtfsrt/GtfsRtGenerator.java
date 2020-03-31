@@ -34,8 +34,13 @@ public class GtfsRtGenerator {
                 .setBearing(hfpData.getPayload().getHdg())
                 .setOdometer(hfpData.getPayload().getOdo()));
 
-        vp.setVehicle(GtfsRealtime.VehicleDescriptor.newBuilder()
-                .setId(hfpData.getTopic().getUniqueVehicleId()));
+        GtfsRealtime.VehicleDescriptor.Builder vehicleDescriptor = GtfsRealtime.VehicleDescriptor.newBuilder()
+                .setId(hfpData.getTopic().getUniqueVehicleId());
+        if (hfpData.getPayload().hasLabel()) {
+            vehicleDescriptor.setLabel(hfpData.getPayload().getLabel());
+        }
+
+        vp.setVehicle(vehicleDescriptor);
 
         String startTime = getStartTime(hfpData);
 
