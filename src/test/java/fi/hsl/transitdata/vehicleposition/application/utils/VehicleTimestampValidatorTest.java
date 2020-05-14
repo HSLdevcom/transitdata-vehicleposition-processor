@@ -1,4 +1,4 @@
-package fi.transitdata.vehicleposition.application.utils;
+package fi.hsl.transitdata.vehicleposition.application.utils;
 
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
