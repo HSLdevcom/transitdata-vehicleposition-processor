@@ -1,4 +1,4 @@
-package fi.transitdata.vehicleposition.application.utils;
+package fi.hsl.transitdata.vehicleposition.application.utils;
 
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import org.junit.Before;
