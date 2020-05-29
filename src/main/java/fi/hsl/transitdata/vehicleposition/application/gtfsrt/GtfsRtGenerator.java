@@ -52,10 +52,27 @@ public class GtfsRtGenerator {
                 .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))
                 .setStartTime(startTime));
 
-        if (hfpData.getPayload().getOccu() == 100) {
-            vp.setOccupancyStatus(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
-        }
+        getOccupancyStatus(hfpData.getPayload()).ifPresent(vp::setOccupancyStatus);
 
         return Optional.of(vp.build());
+    }
+
+    private static Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload payload) {
+        //TODO: these values should be configurable
+        if (!payload.hasOccu() || payload.getOccu() == 0) {
+            return Optional.empty();
+        } else if (payload.getOccu() <= 5) {
+            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
+        } else if (payload.getOccu() <= 20) {
+            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.MANY_SEATS_AVAILABLE);
+        } else if (payload.getOccu() <= 50) {
+            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FEW_SEATS_AVAILABLE);
+        } else if (payload.getOccu() <= 70) {
+            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.STANDING_ROOM_ONLY);
+        } else if (payload.getOccu() <= 90) {
+            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY);
+        } else {
+            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
+        }
     }
 }
