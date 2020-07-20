@@ -6,6 +6,8 @@ import fi.hsl.transitdata.vehicleposition.application.StopStatusProcessor;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import org.junit.Test;
 
+import java.util.Collections;
+
 import static com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO;
 import static org.junit.Assert.*;
 
@@ -20,7 +22,7 @@ public class GtfsRtGeneratorTest {
                                     .setTsi(0))
                             .build();
 
-        assertFalse(GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO)).isPresent());
+        assertFalse(GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Collections.emptyNavigableMap()).isPresent());
     }
 
     @Test
@@ -53,7 +55,7 @@ public class GtfsRtGeneratorTest {
                                 .setOccu(100))
                             .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO)).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Collections.emptyNavigableMap()).get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);
@@ -100,7 +102,7 @@ public class GtfsRtGeneratorTest {
                         .setOccu(100))
                 .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO)).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Collections.emptyNavigableMap()).get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);

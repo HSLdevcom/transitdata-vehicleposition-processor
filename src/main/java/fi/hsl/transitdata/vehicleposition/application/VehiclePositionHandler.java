@@ -16,7 +16,7 @@ import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class VehiclePositionHandler implements IMessageHandler {
@@ -32,6 +32,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final StopStatusProcessor stopStatusProcessor;
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
+    private final NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap;
+
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
 
@@ -43,6 +45,14 @@ public class VehiclePositionHandler implements IMessageHandler {
         tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
+
+        occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
+                .stream()
+                .collect(
+                        TreeMap::new,
+                        (map, config) -> map.put(config.getInt("occu"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
+                        TreeMap::putAll
+                );
     }
 
     @Override
@@ -83,7 +93,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus);
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, occupancyStatusMap );
                 if (optionalVehiclePosition.isPresent()) {
                     final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
 

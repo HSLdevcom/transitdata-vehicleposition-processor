@@ -5,14 +5,18 @@ import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.transitdata.vehicleposition.application.StopStatusProcessor;
 import fi.hsl.transitdata.vehicleposition.application.utils.RouteIdNormalizer;
 
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.SortedMap;
+import java.util.function.Function;
 
 import static fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils.getStartTime;
 
 public class GtfsRtGenerator {
     private GtfsRtGenerator() {}
 
-    public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, StopStatusProcessor.StopStatus stopStatus) {
+    public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, StopStatusProcessor.StopStatus stopStatus, NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap) {
         //Ignore messages where the vehicle has no location
         if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong()) {
             return Optional.empty();
@@ -52,27 +56,16 @@ public class GtfsRtGenerator {
                 .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))
                 .setStartTime(startTime));
 
-        getOccupancyStatus(hfpData.getPayload()).ifPresent(vp::setOccupancyStatus);
+        getOccupancyStatus(hfpData.getPayload(), occupancyStatusMap).ifPresent(vp::setOccupancyStatus);
 
         return Optional.of(vp.build());
     }
 
-    private static Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload payload) {
-        //TODO: these values should be configurable
-        if (!payload.hasOccu() || payload.getOccu() == 0) {
+    private static Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload payload, NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap) {
+        if (!payload.hasOccu()) {
             return Optional.empty();
-        } else if (payload.getOccu() <= 5) {
-            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
-        } else if (payload.getOccu() <= 20) {
-            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.MANY_SEATS_AVAILABLE);
-        } else if (payload.getOccu() <= 50) {
-            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FEW_SEATS_AVAILABLE);
-        } else if (payload.getOccu() <= 70) {
-            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.STANDING_ROOM_ONLY);
-        } else if (payload.getOccu() <= 90) {
-            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.CRUSHED_STANDING_ROOM_ONLY);
         } else {
-            return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
+            return Optional.ofNullable(occupancyStatusMap.lowerEntry(payload.getOccu())).map(Map.Entry::getValue);
         }
     }
 }
