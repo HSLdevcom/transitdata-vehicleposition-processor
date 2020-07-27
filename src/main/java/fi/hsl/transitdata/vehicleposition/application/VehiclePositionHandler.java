@@ -16,7 +16,7 @@ import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class VehiclePositionHandler implements IMessageHandler {
@@ -32,6 +32,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final StopStatusProcessor stopStatusProcessor;
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
+    private final NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap;
+
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
 
@@ -43,6 +45,14 @@ public class VehiclePositionHandler implements IMessageHandler {
         tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
+
+        occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
+                .stream()
+                .collect(
+                        TreeMap::new,
+                        (map, config) -> map.put(config.getInt("occu"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
+                        TreeMap::putAll
+                );
     }
 
     @Override
@@ -83,10 +93,15 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus);
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, occupancyStatusMap );
                 if (optionalVehiclePosition.isPresent()) {
-                    GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
-                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
+                    final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
+
+                    final String topicSuffix = getTopicSuffix(vehiclePosition);
+
+                    final GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), vehiclePosition, data.getPayload().getTsi());
+
+                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage, data.getPayload().getTsi());
                 }
             } else {
                 log.warn("Invalid protobuf schema, expecting HfpData");
@@ -103,6 +118,18 @@ public class VehiclePositionHandler implements IMessageHandler {
         }
     }
 
+    static String getTopicSuffix(GtfsRealtime.VehiclePosition vehiclePosition) {
+        final GtfsRealtime.TripDescriptor trip = vehiclePosition.getTrip();
+
+        return String.join("/",
+                trip.getRouteId(),
+                trip.getStartDate(),
+                trip.getStartTime(),
+                String.valueOf(trip.getDirectionId()),
+                vehiclePosition.getCurrentStatus().name(),
+                vehiclePosition.getStopId());
+    }
+
     private static String generateEntityId(Hfp.Data data) {
         return "vehicle_position_"+data.getTopic().getUniqueVehicleId();
         //return String.join("_",data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), String.valueOf(data.getTopic().getDirectionId()));
@@ -117,11 +144,12 @@ public class VehiclePositionHandler implements IMessageHandler {
                 .thenRun(() -> {});
     }
 
-    private void sendPulsarMessage(final String vehicleId, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) {
+    private void sendPulsarMessage(final String vehicleId, final String topicSuffix, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) {
         producer.newMessage()
             .key(vehicleId)
             .value(feedMessage.toByteArray())
             .eventTime(timestampMs)
+            .property(TransitdataProperties.KEY_MQTT_TOPIC, topicSuffix)
             .property(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.GTFS_VehiclePosition.toString())
             .sendAsync()
             .whenComplete((messageId, error) -> {
