@@ -5,6 +5,7 @@ import com.google.transit.realtime.GtfsRealtime;
 import com.typesafe.config.Config;
 import fi.hsl.common.gtfsrt.FeedMessageFactory;
 import fi.hsl.common.hfp.proto.Hfp;
+import fi.hsl.common.passengercount.proto.PassengerCount;
 import fi.hsl.common.pulsar.IMessageHandler;
 import fi.hsl.common.pulsar.PulsarApplicationContext;
 import fi.hsl.common.transitdata.TransitdataProperties;
@@ -33,9 +34,12 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
     private final NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap;
+    private final NavigableMap<Double, GtfsRealtime.VehiclePosition.OccupancyStatus> occuLevelsVehicleLoadRatio;
 
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
+
+    private Map<Integer, Double> vehicleLoadRatio = new HashMap();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -53,11 +57,24 @@ public class VehiclePositionHandler implements IMessageHandler {
                         (map, config) -> map.put(config.getInt("occu"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
                         TreeMap::putAll
                 );
+
+        occuLevelsVehicleLoadRatio = config.getConfigList("processor.vehicleposition.occuLevelsVehicleLoadRatio")
+                .stream()
+                .collect(
+                        TreeMap::new,
+                        (map, config) -> map.put(config.getDouble("loadRatio"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
+                        TreeMap::putAll
+                );
     }
 
     @Override
     public void handleMessage(Message message) {
         try {
+            if(TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.PassengerCount)) {
+                PassengerCount.Data data = PassengerCount.Data.parseFrom(message.getData());
+                //Might have to make the data more fuzzy because of gdpr
+                vehicleLoadRatio.put(data.getPayload().getVeh(), data.getPayload().getVehicleCounts().getVehicleLoadRatio());
+            }
             if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
@@ -93,7 +110,9 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, occupancyStatusMap );
+                Double loadRatio = vehicleLoadRatio.get(data.getPayload().getVeh());
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, occupancyStatusMap, loadRatio,  occuLevelsVehicleLoadRatio);
+
                 if (optionalVehiclePosition.isPresent()) {
                     final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
 
