@@ -14,9 +14,8 @@
 
     <repositories>
         <repository>
-            <id>bintray</id>
-            <name>bintray</name>
-            <url>https://dl.bintray.com/hsldevcom/maven</url>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/HSLdevcom/*</url>
         </repository>
     </repositories>
 
