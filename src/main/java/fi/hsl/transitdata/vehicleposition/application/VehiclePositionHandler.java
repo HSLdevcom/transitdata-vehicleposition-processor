@@ -39,7 +39,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
 
-    private Map<Integer, Double> vehicleLoadRatio = new HashMap();
+    //Maps unique_vehicle_id to latest vehicle load ratio
+    private Map<String, Double> vehicleLoadRatio = new HashMap();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -67,15 +68,18 @@ public class VehiclePositionHandler implements IMessageHandler {
                 );
     }
 
+    private static String getUniqueVehicleId(int oper, int veh) {
+        return oper + "_" + veh;
+    }
+
     @Override
     public void handleMessage(Message message) {
         try {
-            if(TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.PassengerCount)) {
+            if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.PassengerCount)) {
                 PassengerCount.Data data = PassengerCount.Data.parseFrom(message.getData());
                 //Might have to make the data more fuzzy because of gdpr
-                vehicleLoadRatio.put(data.getPayload().getVeh(), data.getPayload().getVehicleCounts().getVehicleLoadRatio());
-            }
-            if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
+                vehicleLoadRatio.put(getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh()), data.getPayload().getVehicleCounts().getVehicleLoadRatio());
+            } else if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
                 //Ignore HFP messages that are not sent from vehicles on a journey
@@ -110,7 +114,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                Double loadRatio = vehicleLoadRatio.get(data.getPayload().getVeh());
+                Double loadRatio = vehicleLoadRatio.get(getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh()));
                 Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, occupancyStatusMap, loadRatio,  occuLevelsVehicleLoadRatio);
 
                 if (optionalVehiclePosition.isPresent()) {
