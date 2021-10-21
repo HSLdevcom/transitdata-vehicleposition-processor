@@ -11,6 +11,7 @@ import fi.hsl.common.pulsar.PulsarApplicationContext;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
+import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtOccupancyStatusHelper;
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
 import org.apache.pulsar.client.api.*;
@@ -33,14 +34,13 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final StopStatusProcessor stopStatusProcessor;
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
-    private final NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap;
-    private final NavigableMap<Double, GtfsRealtime.VehiclePosition.OccupancyStatus> occuLevelsVehicleLoadRatio;
+    private final GtfsRtOccupancyStatusHelper gtfsRtOccupancyStatusHelper;
 
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
 
     //Maps unique_vehicle_id to latest vehicle load ratio
-    private Map<String, Double> vehicleLoadRatio = new HashMap();
+    private Map<String, PassengerCount.Payload> passengerCounts = new HashMap<>();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -51,7 +51,7 @@ public class VehiclePositionHandler implements IMessageHandler {
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
 
-        occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
+        NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
                 .stream()
                 .collect(
                         TreeMap::new,
@@ -59,13 +59,15 @@ public class VehiclePositionHandler implements IMessageHandler {
                         TreeMap::putAll
                 );
 
-        occuLevelsVehicleLoadRatio = config.getConfigList("processor.vehicleposition.occuLevelsVehicleLoadRatio")
+        NavigableMap<Double, GtfsRealtime.VehiclePosition.OccupancyStatus> occuLevelsVehicleLoadRatio = config.getConfigList("processor.vehicleposition.occuLevelsVehicleLoadRatio")
                 .stream()
                 .collect(
                         TreeMap::new,
                         (map, config) -> map.put(config.getDouble("loadRatio"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
                         TreeMap::putAll
                 );
+
+        gtfsRtOccupancyStatusHelper = new GtfsRtOccupancyStatusHelper(occupancyStatusMap, occuLevelsVehicleLoadRatio);
     }
 
     private static String getUniqueVehicleId(int oper, int veh) {
@@ -77,8 +79,10 @@ public class VehiclePositionHandler implements IMessageHandler {
         try {
             if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.PassengerCount)) {
                 PassengerCount.Data data = PassengerCount.Data.parseFrom(message.getData());
-                //Might have to make the data more fuzzy because of gdpr
-                vehicleLoadRatio.put(getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh()), data.getPayload().getVehicleCounts().getVehicleLoadRatio());
+
+                final String uniqueVehicleId = getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh());
+
+                passengerCounts.put(uniqueVehicleId, data.getPayload());
             } else if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
@@ -98,7 +102,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PAS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
-                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType().toString());
+                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType());
                     return;
                 }
 
@@ -114,8 +118,11 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                Double loadRatio = vehicleLoadRatio.get(getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh()));
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, occupancyStatusMap, loadRatio,  occuLevelsVehicleLoadRatio);
+
+                String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
+                Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCounts.get(uniqueVehicleId));
+
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, maybeOccupancyStatus);
 
                 if (optionalVehiclePosition.isPresent()) {
                     final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();

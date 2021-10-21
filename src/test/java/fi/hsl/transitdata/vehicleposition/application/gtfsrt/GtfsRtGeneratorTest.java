@@ -8,18 +8,13 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.TreeMap;
 
 import static com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO;
 import static org.junit.Assert.*;
 
 public class GtfsRtGeneratorTest {
-    private static final NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> OCCUPANCY_MAP = new TreeMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus>() {
-        {
-            put(90, GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
-        }
-    };
-
     @Test
     public void testNoVehiclePositionGeneratedIfNoLocation() {
         Hfp.Data data = Hfp.Data.newBuilder()
@@ -30,7 +25,7 @@ public class GtfsRtGeneratorTest {
                                     .setTsi(0))
                             .build();
 
-        assertFalse(GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Collections.emptyNavigableMap(), null, Collections.emptyNavigableMap()).isPresent());
+        assertFalse(GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).isPresent());
     }
 
     @Test
@@ -63,7 +58,7 @@ public class GtfsRtGeneratorTest {
                                 .setOccu(100))
                             .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), OCCUPANCY_MAP, null, Collections.emptyNavigableMap()).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);
@@ -76,7 +71,6 @@ public class GtfsRtGeneratorTest {
         assertEquals("09:30:00", gtfsRtVp.getTrip().getStartTime());
         assertEquals(0, gtfsRtVp.getTrip().getDirectionId());
         assertEquals("1999", gtfsRtVp.getTrip().getRouteId());
-        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL, gtfsRtVp.getOccupancyStatus());
     }
 
     @Test
@@ -110,7 +104,7 @@ public class GtfsRtGeneratorTest {
                         .setOccu(100))
                 .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), OCCUPANCY_MAP, null, Collections.emptyNavigableMap()).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);
@@ -124,6 +118,5 @@ public class GtfsRtGeneratorTest {
         assertEquals(0, gtfsRtVp.getTrip().getDirectionId());
         assertEquals("1999", gtfsRtVp.getTrip().getRouteId());
         assertEquals("SUOMENLINNA II", gtfsRtVp.getVehicle().getLabel());
-        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL, gtfsRtVp.getOccupancyStatus());
     }
 }
