@@ -12,6 +12,7 @@ import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtOccupancyStatusHelper;
+import fi.hsl.transitdata.vehicleposition.application.utils.PassengerCountCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
 import org.apache.pulsar.client.api.*;
@@ -39,8 +40,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
 
-    //Maps unique_vehicle_id to latest vehicle load ratio
-    private Map<String, PassengerCount.Payload> passengerCounts = new HashMap<>();
+    //Keeps track of latest passenger count message received for the trip
+    private PassengerCountCache passengerCountCache = new PassengerCountCache();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -82,7 +83,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 final String uniqueVehicleId = getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh());
 
-                passengerCounts.put(uniqueVehicleId, data.getPayload());
+                passengerCountCache.updatePassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir(), data.getPayload());
             } else if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
@@ -120,7 +121,9 @@ public class VehiclePositionHandler implements IMessageHandler {
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
 
                 String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
-                Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCounts.get(uniqueVehicleId));
+                PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
+
+                Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
 
                 Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, maybeOccupancyStatus);
 
