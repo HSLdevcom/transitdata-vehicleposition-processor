@@ -5,11 +5,14 @@ import com.google.transit.realtime.GtfsRealtime;
 import com.typesafe.config.Config;
 import fi.hsl.common.gtfsrt.FeedMessageFactory;
 import fi.hsl.common.hfp.proto.Hfp;
+import fi.hsl.common.passengercount.proto.PassengerCount;
 import fi.hsl.common.pulsar.IMessageHandler;
 import fi.hsl.common.pulsar.PulsarApplicationContext;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
+import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtOccupancyStatusHelper;
+import fi.hsl.transitdata.vehicleposition.application.utils.PassengerCountCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
 import org.apache.pulsar.client.api.*;
@@ -32,10 +35,13 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final StopStatusProcessor stopStatusProcessor;
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
-    private final NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap;
+    private final GtfsRtOccupancyStatusHelper gtfsRtOccupancyStatusHelper;
 
     private long messagesProcessed = 0;
     private long messageProcessingStartTime = System.currentTimeMillis();
+
+    //Keeps track of latest passenger count message received for the trip
+    private PassengerCountCache passengerCountCache = new PassengerCountCache();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -46,19 +52,39 @@ public class VehiclePositionHandler implements IMessageHandler {
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
 
-        occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
+        NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
                 .stream()
                 .collect(
                         TreeMap::new,
                         (map, config) -> map.put(config.getInt("occu"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
                         TreeMap::putAll
                 );
+
+        NavigableMap<Double, GtfsRealtime.VehiclePosition.OccupancyStatus> occuLevelsVehicleLoadRatio = config.getConfigList("processor.vehicleposition.occuLevelsVehicleLoadRatio")
+                .stream()
+                .collect(
+                        TreeMap::new,
+                        (map, config) -> map.put(config.getDouble("loadRatio"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
+                        TreeMap::putAll
+                );
+
+        gtfsRtOccupancyStatusHelper = new GtfsRtOccupancyStatusHelper(occupancyStatusMap, occuLevelsVehicleLoadRatio);
+    }
+
+    private static String getUniqueVehicleId(int oper, int veh) {
+        return oper + "_" + veh;
     }
 
     @Override
     public void handleMessage(Message message) {
         try {
-            if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
+            if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.PassengerCount)) {
+                PassengerCount.Data data = PassengerCount.Data.parseFrom(message.getData());
+
+                final String uniqueVehicleId = getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh());
+
+                passengerCountCache.updatePassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir(), data.getPayload());
+            } else if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
                 //Ignore HFP messages that are not sent from vehicles on a journey
@@ -77,7 +103,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PAS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
-                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType().toString());
+                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType());
                     return;
                 }
 
@@ -93,7 +119,14 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, occupancyStatusMap );
+
+                String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
+                PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
+
+                Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
+
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, maybeOccupancyStatus);
+
                 if (optionalVehiclePosition.isPresent()) {
                     final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
 
