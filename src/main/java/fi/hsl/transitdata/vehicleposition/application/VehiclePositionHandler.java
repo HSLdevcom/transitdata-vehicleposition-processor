@@ -122,6 +122,17 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
                 PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
+                if (!isValidPassengerCountData(passengerCount)) {
+                    if (passengerCount != null) {
+                        log.info("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
+                                uniqueVehicleId,
+                                passengerCount.getVehicleCounts().getVehicleLoad(),
+                                passengerCount.getVehicleCounts().getVehicleLoadRatio());
+                    }
+
+                    //Don't use invalid data
+                    passengerCount = null;
+                }
 
                 Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
 
@@ -149,6 +160,20 @@ public class VehiclePositionHandler implements IMessageHandler {
                 messageProcessingStartTime = System.currentTimeMillis();
             }
         }
+    }
+
+    /**
+     * Checks if the passenger count data is valid (i.e. no negative passenger count etc.)
+     * @param payload
+     * @return
+     */
+    private static boolean isValidPassengerCountData(PassengerCount.Payload payload) {
+        if (payload == null) {
+            return false;
+        }
+
+        return payload.getVehicleCounts().getVehicleLoad() >= 0
+                   && payload.getVehicleCounts().getVehicleLoadRatio() >= 0;
     }
 
     static String getTopicSuffix(GtfsRealtime.VehiclePosition vehiclePosition) {
