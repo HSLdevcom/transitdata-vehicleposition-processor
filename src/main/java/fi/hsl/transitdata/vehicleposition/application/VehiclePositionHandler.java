@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class VehiclePositionHandler implements IMessageHandler {
     private static final Logger log = LoggerFactory.getLogger(VehiclePositionHandler.class);
@@ -68,7 +69,9 @@ public class VehiclePositionHandler implements IMessageHandler {
                         TreeMap::putAll
                 );
 
-        gtfsRtOccupancyStatusHelper = new GtfsRtOccupancyStatusHelper(occupancyStatusMap, occuLevelsVehicleLoadRatio);
+        List<String> passengerCountEnabledVehicles = Arrays.stream(config.getString("processor.vehicleposition.passengerCountEnabledVehicles").split(",")).collect(Collectors.toList());
+
+        gtfsRtOccupancyStatusHelper = new GtfsRtOccupancyStatusHelper(occupancyStatusMap, occuLevelsVehicleLoadRatio, passengerCountEnabledVehicles);
     }
 
     private static String getUniqueVehicleId(int oper, int veh) {
