@@ -1,5 +1,6 @@
-FROM openjdk:8-jre-slim
+FROM eclipse-temurin:11-alpine
 #Install curl for health check
-RUN apt-get update && apt-get install -y --no-install-recommends curl
+RUN apk add --no-cache curl
+
 ADD target/transitdata-vehicleposition-processor.jar /usr/app/transitdata-vehicleposition-processor.jar
-ENTRYPOINT ["java", "-jar", "/usr/app/transitdata-vehicleposition-processor.jar"]
+ENTRYPOINT ["java", "-XX:InitialRAMPercentage=10.0", "-XX:MaxRAMPercentage=95.0", "-jar", "/usr/app/transitdata-vehicleposition-processor.jar"]
