@@ -175,8 +175,7 @@ public class VehiclePositionHandler implements IMessageHandler {
             return false;
         }
 
-        return payload.getVehicleCounts().getVehicleLoad() >= 0
-                   && payload.getVehicleCounts().getVehicleLoadRatio() >= 0;
+        return payload.getVehicleCounts().getVehicleLoad() >= 0;
     }
 
     static String getTopicSuffix(GtfsRealtime.VehiclePosition vehiclePosition) {
