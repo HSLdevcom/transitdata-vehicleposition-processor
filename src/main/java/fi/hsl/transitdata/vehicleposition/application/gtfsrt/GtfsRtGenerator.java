@@ -2,14 +2,10 @@ package fi.hsl.transitdata.vehicleposition.application.gtfsrt;
 
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
+import fi.hsl.common.transitdata.RouteIdUtils;
 import fi.hsl.transitdata.vehicleposition.application.StopStatusProcessor;
-import fi.hsl.transitdata.vehicleposition.application.utils.RouteIdNormalizer;
 
-import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Optional;
-import java.util.SortedMap;
-import java.util.function.Function;
 
 import static fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils.getStartTime;
 
@@ -52,7 +48,7 @@ public class GtfsRtGenerator {
                 //TODO: figure out how to set schedule relationship correctly
                 //.setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
                 .setDirectionId(hfpData.getTopic().getDirectionId() - 1)
-                .setRouteId(RouteIdNormalizer.normalizeRouteId(hfpData.getTopic().getRouteId()))
+                .setRouteId(RouteIdUtils.normalizeRouteId(hfpData.getTopic().getRouteId()))
                 .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))
                 .setStartTime(startTime));
 

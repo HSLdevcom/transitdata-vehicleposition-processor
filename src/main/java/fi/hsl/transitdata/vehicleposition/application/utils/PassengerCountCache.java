@@ -2,12 +2,13 @@ package fi.hsl.transitdata.vehicleposition.application.utils;
 
 import fi.hsl.common.passengercount.proto.PassengerCount;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 public class PassengerCountCache {
+    //TODO: these should be configurable
     //Max size for cache to prune data for trips that have been completed
     private static final int MAX_SIZE = 5000;
     //Remove vehicle ids for trips older than this
@@ -15,17 +16,25 @@ public class PassengerCountCache {
 
     private Map<VehicleIdAndTrip, PassengerCount.Payload> vehicleIdAndTripToPassengerCount = new HashMap<>(1000);
 
-    public void updatePassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId, PassengerCount.Payload passengerCount) {
+    private void pruneOldData() {
         if (vehicleIdAndTripToPassengerCount.size() >= MAX_SIZE) {
+            final Duration maxAge = Duration.ofHours(MAX_AGE_HOURS);
+
             vehicleIdAndTripToPassengerCount.keySet().removeIf(vehicleIdAndTrip ->
-                    System.nanoTime() - vehicleIdAndTrip.createTime > TimeUnit.NANOSECONDS.convert(MAX_AGE_HOURS, TimeUnit.HOURS)
+                    vehicleIdAndTrip.getAge().compareTo(maxAge) >= 0
             );
         }
+    }
+
+    public void updatePassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId, PassengerCount.Payload passengerCount) {
+        pruneOldData();
 
         vehicleIdAndTripToPassengerCount.put(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId), passengerCount);
     }
 
     public PassengerCount.Payload getPassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId) {
+        pruneOldData();
+
         return vehicleIdAndTripToPassengerCount.get(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId));
     }
 
@@ -44,6 +53,10 @@ public class PassengerCountCache {
             this.operatingDay = operatingDay;
             this.startTime = startTime;
             this.directionId = directionId;
+        }
+
+        public Duration getAge() {
+            return Duration.ofNanos(System.nanoTime() - createTime);
         }
 
         @Override
