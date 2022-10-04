@@ -3,10 +3,14 @@ package fi.hsl.transitdata.vehicleposition.application.gtfsrt;
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.common.passengercount.proto.PassengerCount;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
 public class GtfsRtOccupancyStatusHelper {
+    private static final Logger log = LoggerFactory.getLogger(GtfsRtOccupancyStatusHelper.class);
+
     private final NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occuToOccupancyStatus;
     private final NavigableMap<Double, GtfsRealtime.VehiclePosition.OccupancyStatus> loadRatioToOccupancyStatus;
     private final Set<String> passengerCountEnabledVehicles; //null if no filtering is used (i.e. publish passenger count for all vehicles)
@@ -22,14 +26,18 @@ public class GtfsRtOccupancyStatusHelper {
                                        Collection<String> passengerCountEnabledVehicles) {
         this.occuToOccupancyStatus = occuToOccupancyStatus;
         this.loadRatioToOccupancyStatus = loadRatioToOccupancyStatus;
-        this.passengerCountEnabledVehicles = passengerCountEnabledVehicles.isEmpty() ? null : new HashSet<>(passengerCountEnabledVehicles);
+        this.passengerCountEnabledVehicles = (passengerCountEnabledVehicles == null || passengerCountEnabledVehicles.isEmpty()) ? null : new HashSet<>(passengerCountEnabledVehicles);
+
+        if (this.passengerCountEnabledVehicles == null) {
+            log.info("Occupancy status enabled for all vehicles");
+        } else {
+            log.info("Occupancy status enabled for vehicles: {}", String.join(", ", passengerCountEnabledVehicles));
+        }
     }
 
     public GtfsRtOccupancyStatusHelper(NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occuToOccupancyStatus,
                                        NavigableMap<Double, GtfsRealtime.VehiclePosition.OccupancyStatus> loadRatioToOccupancyStatus) {
-        this.occuToOccupancyStatus = occuToOccupancyStatus;
-        this.loadRatioToOccupancyStatus = loadRatioToOccupancyStatus;
-        this.passengerCountEnabledVehicles = null;
+        this(occuToOccupancyStatus, loadRatioToOccupancyStatus, null);
     }
 
     public Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload hfpPayload, PassengerCount.Payload passengerCountPayload) {
