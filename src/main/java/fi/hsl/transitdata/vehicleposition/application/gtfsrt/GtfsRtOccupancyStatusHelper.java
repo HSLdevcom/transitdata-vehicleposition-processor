@@ -53,10 +53,8 @@ public class GtfsRtOccupancyStatusHelper {
             if (hfpPayload.getOccu() != 0) {
                 return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
             }
-
-            return Optional.empty();
-        } else {
-            return Optional.empty();
         }
+
+        return Optional.empty();
     }
 }
