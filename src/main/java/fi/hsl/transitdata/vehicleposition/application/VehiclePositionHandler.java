@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class VehiclePositionHandler implements IMessageHandler {
@@ -42,7 +43,7 @@ public class VehiclePositionHandler implements IMessageHandler {
     private long messageProcessingStartTime = System.currentTimeMillis();
 
     //Keeps track of latest passenger count message received for the trip
-    private PassengerCountCache passengerCountCache = new PassengerCountCache();
+    private final PassengerCountCache passengerCountCache = new PassengerCountCache();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
@@ -69,7 +70,9 @@ public class VehiclePositionHandler implements IMessageHandler {
                         TreeMap::putAll
                 );
 
-        List<String> passengerCountEnabledVehicles = Arrays.stream(config.getString("processor.vehicleposition.passengerCountEnabledVehicles").split(",")).collect(Collectors.toList());
+        List<String> passengerCountEnabledVehicles = Arrays.stream(config.getString("processor.vehicleposition.passengerCountEnabledVehicles").split(","))
+                .filter(Predicate.not(String::isBlank))
+                .collect(Collectors.toList());
 
         gtfsRtOccupancyStatusHelper = new GtfsRtOccupancyStatusHelper(occupancyStatusMap, occuLevelsVehicleLoadRatio, passengerCountEnabledVehicles);
     }
