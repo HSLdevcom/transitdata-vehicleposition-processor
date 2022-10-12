@@ -117,8 +117,10 @@ public class VehiclePositionHandler implements IMessageHandler {
                     return;
                 }
 
-                //If some other vehicle was registered for the trip, do not produce vehicle position
-                if (!tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir())) {
+                final boolean tripAlreadyTaken = !tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir());
+
+                if (tripAlreadyTaken && !Set.of(Hfp.Topic.TransportMode.ubus, Hfp.Topic.TransportMode.bus).contains(data.getTopic().getTransportMode())) {
+                    //If some other vehicle was registered for the trip and the vehicle is not a bus, do not produce vehicle position
                     log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
                     return;
                 }
@@ -146,7 +148,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
 
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, maybeOccupancyStatus);
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
 
                 if (optionalVehiclePosition.isPresent()) {
                     final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
