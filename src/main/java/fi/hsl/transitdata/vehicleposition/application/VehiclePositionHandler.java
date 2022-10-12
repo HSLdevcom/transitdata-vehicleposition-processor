@@ -169,6 +169,8 @@ public class VehiclePositionHandler implements IMessageHandler {
         } finally {
             ack(message.getMessageId());
 
+            messagesProcessed++;
+
             final Duration timeSinceLastLogging = Duration.ofNanos(System.nanoTime() - messageProcessingStartTime);
             if (timeSinceLastLogging.compareTo(LOG_INTERVAL) >= 0) {
                 log.info("{} messages processed during last {}ms ({} messages delayed by more than {} seconds)", messagesProcessed, timeSinceLastLogging.toMillis(), messagesDelayed, DELAYED_MESSAGE_THRESHOLD.toSeconds());
