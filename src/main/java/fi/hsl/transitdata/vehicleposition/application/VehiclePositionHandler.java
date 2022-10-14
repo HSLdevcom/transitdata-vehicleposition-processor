@@ -49,6 +49,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     //Keeps track of latest passenger count message received for the trip
     private final PassengerCountCache passengerCountCache = new PassengerCountCache();
 
+    private final Set<Hfp.Topic.TransportMode> addedTripsEnabledModes;
+
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
         producer = context.getProducer();
@@ -57,6 +59,10 @@ public class VehiclePositionHandler implements IMessageHandler {
         tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
+
+        addedTripsEnabledModes = Arrays.stream(config.getString("processor.vehicleposition.addedTripEnabledModes").split(","))
+                .map(Hfp.Topic.TransportMode::valueOf)
+                .collect(Collectors.toSet());
 
         NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
                 .stream()
@@ -119,7 +125,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 final boolean tripAlreadyTaken = !tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir());
 
-                if (tripAlreadyTaken && !Set.of(Hfp.Topic.TransportMode.ubus, Hfp.Topic.TransportMode.bus).contains(data.getTopic().getTransportMode())) {
+                if (tripAlreadyTaken && !addedTripsEnabledModes.contains(data.getTopic().getTransportMode())) {
                     //If some other vehicle was registered for the trip and the vehicle is not a bus, do not produce vehicle position
                     log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
                     return;
