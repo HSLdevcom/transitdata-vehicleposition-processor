@@ -134,7 +134,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                 PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
                 if (!isValidPassengerCountData(passengerCount)) {
                     if (passengerCount != null) {
-                        log.info("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
+                        log.debug("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
                                 uniqueVehicleId,
                                 passengerCount.getVehicleCounts().getVehicleLoad(),
                                 passengerCount.getVehicleCounts().getVehicleLoadRatio());
