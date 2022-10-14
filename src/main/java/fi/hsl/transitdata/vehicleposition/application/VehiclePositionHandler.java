@@ -51,7 +51,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
-        producer = context.getProducer();
+        producer = context.getSingleProducer();
         config = context.getConfig();
 
         tripVehicleCache = new TripVehicleCache();
