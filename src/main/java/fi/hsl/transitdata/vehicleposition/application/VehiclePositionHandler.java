@@ -19,6 +19,7 @@ import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -27,7 +28,9 @@ import java.util.stream.Collectors;
 public class VehiclePositionHandler implements IMessageHandler {
     private static final Logger log = LoggerFactory.getLogger(VehiclePositionHandler.class);
 
-    private static final int LOG_THRESHOLD = 1000;
+    private static final Duration LOG_INTERVAL = Duration.ofSeconds(1);
+    //If HFP message is delayed by more than this duration, add it to delayed messages counter
+    private static final Duration DELAYED_MESSAGE_THRESHOLD = Duration.ofMinutes(2);
 
     private final Consumer<byte[]> consumer;
     private final Producer<byte[]> producer;
@@ -40,14 +43,15 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final GtfsRtOccupancyStatusHelper gtfsRtOccupancyStatusHelper;
 
     private long messagesProcessed = 0;
-    private long messageProcessingStartTime = System.currentTimeMillis();
+    private long messagesDelayed = 0;
+    private long messageProcessingStartTime = System.nanoTime();
 
     //Keeps track of latest passenger count message received for the trip
     private final PassengerCountCache passengerCountCache = new PassengerCountCache();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
-        producer = context.getProducer();
+        producer = context.getSingleProducer();
         config = context.getConfig();
 
         tripVehicleCache = new TripVehicleCache();
@@ -130,7 +134,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                 PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
                 if (!isValidPassengerCountData(passengerCount)) {
                     if (passengerCount != null) {
-                        log.info("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
+                        log.debug("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
                                 uniqueVehicleId,
                                 passengerCount.getVehicleCounts().getVehicleLoad(),
                                 passengerCount.getVehicleCounts().getVehicleLoadRatio());
@@ -151,6 +155,10 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                     final GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), vehiclePosition, data.getPayload().getTsi());
 
+                    if (Duration.ofMillis(System.currentTimeMillis() - (data.getPayload().getTsi() * 1000)).compareTo(DELAYED_MESSAGE_THRESHOLD) >= 0) {
+                        messagesDelayed++;
+                    }
+
                     sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage, data.getPayload().getTsi());
                 }
             } else {
@@ -161,9 +169,15 @@ public class VehiclePositionHandler implements IMessageHandler {
         } finally {
             ack(message.getMessageId());
 
-            if (++messagesProcessed % LOG_THRESHOLD == 0) {
-                log.info("{} messages processed in {}ms", LOG_THRESHOLD, System.currentTimeMillis() - messageProcessingStartTime);
-                messageProcessingStartTime = System.currentTimeMillis();
+            messagesProcessed++;
+
+            final Duration timeSinceLastLogging = Duration.ofNanos(System.nanoTime() - messageProcessingStartTime);
+            if (timeSinceLastLogging.compareTo(LOG_INTERVAL) >= 0) {
+                log.info("{} messages processed during last {}ms ({} messages delayed by more than {} seconds)", messagesProcessed, timeSinceLastLogging.toMillis(), messagesDelayed, DELAYED_MESSAGE_THRESHOLD.toSeconds());
+
+                messagesProcessed = 0;
+                messagesDelayed = 0;
+                messageProcessingStartTime = System.nanoTime();
             }
         }
     }
