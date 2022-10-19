@@ -13,6 +13,7 @@ import fi.hsl.common.transitdata.TransitdataSchema;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtOccupancyStatusHelper;
 import fi.hsl.transitdata.vehicleposition.application.utils.PassengerCountCache;
+import fi.hsl.transitdata.vehicleposition.application.utils.SeqCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
 import org.apache.pulsar.client.api.*;
@@ -37,6 +38,7 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final Config config;
 
     private final TripVehicleCache tripVehicleCache;
+    private final SeqCache seqCache;
     private final StopStatusProcessor stopStatusProcessor;
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
@@ -55,6 +57,7 @@ public class VehiclePositionHandler implements IMessageHandler {
         config = context.getConfig();
 
         tripVehicleCache = new TripVehicleCache();
+        seqCache = new SeqCache();
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
 
@@ -117,9 +120,8 @@ public class VehiclePositionHandler implements IMessageHandler {
                     return;
                 }
 
-                //Ignore data from metro units other than the first
-                //Note that using tripVehicleCache would also produce one GTFS-RT vehicle position from multiple metro units, but we want to produce positions from the first unit
-                if (data.getTopic().getTransportMode() == Hfp.Topic.TransportMode.metro && data.getPayload().hasSeq() && data.getPayload().getSeq() != 1) {
+                //Produce vehicle positions only for the vehicle that has smallest seq
+                if (data.getPayload().hasSeq() && !seqCache.isSmallestSeq(data.getTopic().getUniqueVehicleId(), data.getPayload().getSeq())) {
                     return;
                 }
 
