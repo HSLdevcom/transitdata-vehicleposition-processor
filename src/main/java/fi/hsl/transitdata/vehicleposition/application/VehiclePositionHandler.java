@@ -5,24 +5,32 @@ import com.google.transit.realtime.GtfsRealtime;
 import com.typesafe.config.Config;
 import fi.hsl.common.gtfsrt.FeedMessageFactory;
 import fi.hsl.common.hfp.proto.Hfp;
+import fi.hsl.common.passengercount.proto.PassengerCount;
 import fi.hsl.common.pulsar.IMessageHandler;
 import fi.hsl.common.pulsar.PulsarApplicationContext;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
+import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtOccupancyStatusHelper;
+import fi.hsl.transitdata.vehicleposition.application.utils.PassengerCountCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
+import java.time.Duration;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class VehiclePositionHandler implements IMessageHandler {
     private static final Logger log = LoggerFactory.getLogger(VehiclePositionHandler.class);
 
-    private static final int LOG_THRESHOLD = 1000;
+    private static final Duration LOG_INTERVAL = Duration.ofSeconds(1);
+    //If HFP message is delayed by more than this duration, add it to delayed messages counter
+    private static final Duration DELAYED_MESSAGE_THRESHOLD = Duration.ofMinutes(2);
 
     private final Consumer<byte[]> consumer;
     private final Producer<byte[]> producer;
@@ -32,23 +40,61 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final StopStatusProcessor stopStatusProcessor;
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
+    private final GtfsRtOccupancyStatusHelper gtfsRtOccupancyStatusHelper;
+
     private long messagesProcessed = 0;
-    private long messageProcessingStartTime = System.currentTimeMillis();
+    private long messagesDelayed = 0;
+    private long messageProcessingStartTime = System.nanoTime();
+
+    //Keeps track of latest passenger count message received for the trip
+    private final PassengerCountCache passengerCountCache = new PassengerCountCache();
 
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
-        producer = context.getProducer();
+        producer = context.getSingleProducer();
         config = context.getConfig();
 
         tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
+
+        NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
+                .stream()
+                .collect(
+                        TreeMap::new,
+                        (map, config) -> map.put(config.getInt("occu"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
+                        TreeMap::putAll
+                );
+
+        NavigableMap<Double, GtfsRealtime.VehiclePosition.OccupancyStatus> occuLevelsVehicleLoadRatio = config.getConfigList("processor.vehicleposition.occuLevelsVehicleLoadRatio")
+                .stream()
+                .collect(
+                        TreeMap::new,
+                        (map, config) -> map.put(config.getDouble("loadRatio"), GtfsRealtime.VehiclePosition.OccupancyStatus.valueOf(config.getString("status"))),
+                        TreeMap::putAll
+                );
+
+        List<String> passengerCountEnabledVehicles = Arrays.stream(config.getString("processor.vehicleposition.passengerCountEnabledVehicles").split(","))
+                .filter(Predicate.not(String::isBlank))
+                .collect(Collectors.toList());
+
+        gtfsRtOccupancyStatusHelper = new GtfsRtOccupancyStatusHelper(occupancyStatusMap, occuLevelsVehicleLoadRatio, passengerCountEnabledVehicles);
+    }
+
+    private static String getUniqueVehicleId(int oper, int veh) {
+        return oper + "_" + veh;
     }
 
     @Override
     public void handleMessage(Message message) {
         try {
-            if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
+            if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.PassengerCount)) {
+                PassengerCount.Data data = PassengerCount.Data.parseFrom(message.getData());
+
+                final String uniqueVehicleId = getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh());
+
+                passengerCountCache.updatePassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir(), data.getPayload());
+            } else if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
                 //Ignore HFP messages that are not sent from vehicles on a journey
@@ -67,7 +113,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PAS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
-                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType().toString());
+                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType());
                     return;
                 }
 
@@ -89,10 +135,37 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus);
+
+                String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
+                PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
+                if (!isValidPassengerCountData(passengerCount)) {
+                    if (passengerCount != null) {
+                        log.debug("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
+                                uniqueVehicleId,
+                                passengerCount.getVehicleCounts().getVehicleLoad(),
+                                passengerCount.getVehicleCounts().getVehicleLoadRatio());
+                    }
+
+                    //Don't use invalid data
+                    passengerCount = null;
+                }
+
+                Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
+
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, maybeOccupancyStatus);
+
                 if (optionalVehiclePosition.isPresent()) {
-                    GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), optionalVehiclePosition.get(), data.getPayload().getTsi());
-                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), feedMessage, data.getPayload().getTsi());
+                    final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
+
+                    final String topicSuffix = getTopicSuffix(vehiclePosition);
+
+                    final GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), vehiclePosition, data.getPayload().getTsi());
+
+                    if (Duration.ofMillis(System.currentTimeMillis() - (data.getPayload().getTsi() * 1000)).compareTo(DELAYED_MESSAGE_THRESHOLD) >= 0) {
+                        messagesDelayed++;
+                    }
+
+                    sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage, data.getPayload().getTsi());
                 }
             } else {
                 log.warn("Invalid protobuf schema, expecting HfpData");
@@ -102,11 +175,42 @@ public class VehiclePositionHandler implements IMessageHandler {
         } finally {
             ack(message.getMessageId());
 
-            if (++messagesProcessed % LOG_THRESHOLD == 0) {
-                log.info("{} messages processed in {}ms", LOG_THRESHOLD, System.currentTimeMillis() - messageProcessingStartTime);
-                messageProcessingStartTime = System.currentTimeMillis();
+            messagesProcessed++;
+
+            final Duration timeSinceLastLogging = Duration.ofNanos(System.nanoTime() - messageProcessingStartTime);
+            if (timeSinceLastLogging.compareTo(LOG_INTERVAL) >= 0) {
+                log.info("{} messages processed during last {}ms ({} messages delayed by more than {} seconds)", messagesProcessed, timeSinceLastLogging.toMillis(), messagesDelayed, DELAYED_MESSAGE_THRESHOLD.toSeconds());
+
+                messagesProcessed = 0;
+                messagesDelayed = 0;
+                messageProcessingStartTime = System.nanoTime();
             }
         }
+    }
+
+    /**
+     * Checks if the passenger count data is valid (i.e. no negative passenger count etc.)
+     * @param payload
+     * @return
+     */
+    private static boolean isValidPassengerCountData(PassengerCount.Payload payload) {
+        if (payload == null) {
+            return false;
+        }
+
+        return payload.getVehicleCounts().getVehicleLoad() >= 0;
+    }
+
+    static String getTopicSuffix(GtfsRealtime.VehiclePosition vehiclePosition) {
+        final GtfsRealtime.TripDescriptor trip = vehiclePosition.getTrip();
+
+        return String.join("/",
+                trip.getRouteId(),
+                trip.getStartDate(),
+                trip.getStartTime(),
+                String.valueOf(trip.getDirectionId()),
+                vehiclePosition.getCurrentStatus().name(),
+                vehiclePosition.getStopId());
     }
 
     private static String generateEntityId(Hfp.Data data) {
@@ -123,11 +227,12 @@ public class VehiclePositionHandler implements IMessageHandler {
                 .thenRun(() -> {});
     }
 
-    private void sendPulsarMessage(final String vehicleId, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) {
+    private void sendPulsarMessage(final String vehicleId, final String topicSuffix, final GtfsRealtime.FeedMessage feedMessage, long timestampMs) {
         producer.newMessage()
             .key(vehicleId)
             .value(feedMessage.toByteArray())
             .eventTime(timestampMs)
+            .property(TransitdataProperties.KEY_MQTT_TOPIC, topicSuffix)
             .property(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.GTFS_VehiclePosition.toString())
             .sendAsync()
             .whenComplete((messageId, error) -> {

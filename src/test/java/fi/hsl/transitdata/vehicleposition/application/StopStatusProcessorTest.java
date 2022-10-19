@@ -1,4 +1,4 @@
-package fi.transitdata.vehicleposition.application;
+package fi.hsl.transitdata.vehicleposition.application;
 
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;

@@ -1,4 +1,4 @@
-package fi.transitdata.vehicleposition.application.utils;
+package fi.hsl.transitdata.vehicleposition.application.utils;
 
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils;
@@ -75,5 +75,20 @@ public class TimeUtilsTest {
                 .build();
 
         assertEquals("23:55:00", TimeUtils.getStartTime(data));
+    }
+
+    @Test
+    public void testGetStartTimeForTripStartingInNextDay() {
+        Hfp.Data data = Hfp.Data.newBuilder()
+                .setSchemaVersion(1)
+                .setPayload(Hfp.Payload.newBuilder()
+                        .setSchemaVersion(1)
+                        .setOday("2019-12-17")
+                        .setTst("2019-12-17T21:55:25.000Z")
+                        .setTsi(1561683025)
+                        .setStart("00:05"))
+                .build();
+
+        assertEquals("24:05:00", TimeUtils.getStartTime(data));
     }
 }
