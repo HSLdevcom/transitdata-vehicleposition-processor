@@ -12,7 +12,7 @@ import static fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils.get
 public class GtfsRtGenerator {
     private GtfsRtGenerator() {}
 
-    public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, StopStatusProcessor.StopStatus stopStatus, Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatus) {
+    public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, GtfsRealtime.TripDescriptor.ScheduleRelationship scheduleRelationship, StopStatusProcessor.StopStatus stopStatus, Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatus) {
         //Ignore messages where the vehicle has no location
         if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong()) {
             return Optional.empty();
@@ -45,8 +45,7 @@ public class GtfsRtGenerator {
         String startTime = getStartTime(hfpData);
 
         vp.setTrip(GtfsRealtime.TripDescriptor.newBuilder()
-                //TODO: figure out how to set schedule relationship correctly
-                //.setScheduleRelationship(GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED)
+                .setScheduleRelationship(scheduleRelationship)
                 .setDirectionId(hfpData.getTopic().getDirectionId() - 1)
                 .setRouteId(RouteIdUtils.normalizeRouteId(hfpData.getTopic().getRouteId()))
                 .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))
