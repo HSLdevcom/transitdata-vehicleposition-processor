@@ -3,16 +3,13 @@ package fi.hsl.transitdata.vehicleposition.application.gtfsrt;
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.transitdata.vehicleposition.application.StopStatusProcessor;
-import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import org.junit.Test;
 
-import java.util.Collections;
-import java.util.NavigableMap;
 import java.util.Optional;
-import java.util.TreeMap;
 
 import static com.google.transit.realtime.GtfsRealtime.VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class GtfsRtGeneratorTest {
     @Test
@@ -25,7 +22,7 @@ public class GtfsRtGeneratorTest {
                                     .setTsi(0))
                             .build();
 
-        assertFalse(GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).isPresent());
+        assertFalse(GtfsRtGenerator.generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).isPresent());
     }
 
     @Test
@@ -58,7 +55,7 @@ public class GtfsRtGeneratorTest {
                                 .setOccu(100))
                             .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);
@@ -104,7 +101,7 @@ public class GtfsRtGeneratorTest {
                         .setOccu(100))
                 .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);

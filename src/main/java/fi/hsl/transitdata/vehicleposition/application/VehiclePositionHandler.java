@@ -49,6 +49,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     //Keeps track of latest passenger count message received for the trip
     private final PassengerCountCache passengerCountCache = new PassengerCountCache();
 
+    private final Set<Hfp.Topic.TransportMode> addedTripsEnabledModes;
+
     public VehiclePositionHandler(final PulsarApplicationContext context) {
         consumer = context.getConsumer();
         producer = context.getSingleProducer();
@@ -57,6 +59,10 @@ public class VehiclePositionHandler implements IMessageHandler {
         tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
+
+        addedTripsEnabledModes = Arrays.stream(config.getString("processor.vehicleposition.addedTripEnabledModes").split(","))
+                .map(Hfp.Topic.TransportMode::valueOf)
+                .collect(Collectors.toSet());
 
         NavigableMap<Integer, GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatusMap = config.getConfigList("processor.vehicleposition.occuLevels")
                 .stream()
@@ -117,8 +123,10 @@ public class VehiclePositionHandler implements IMessageHandler {
                     return;
                 }
 
-                //If some other vehicle was registered for the trip, do not produce vehicle position
-                if (!tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir())) {
+                final boolean tripAlreadyTaken = !tripVehicleCache.registerVehicleForTrip(data.getTopic().getUniqueVehicleId(), data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir());
+
+                if (tripAlreadyTaken && !addedTripsEnabledModes.contains(data.getTopic().getTransportMode())) {
+                    //If some other vehicle was registered for the trip and the vehicle is not a bus, do not produce vehicle position
                     log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
                     return;
                 }
@@ -146,7 +154,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
 
-                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, stopStatus, maybeOccupancyStatus);
+                Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
 
                 if (optionalVehiclePosition.isPresent()) {
                     final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
