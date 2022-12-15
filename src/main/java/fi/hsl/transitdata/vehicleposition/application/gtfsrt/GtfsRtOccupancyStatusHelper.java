@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class GtfsRtOccupancyStatusHelper {
     private static final Logger log = LoggerFactory.getLogger(GtfsRtOccupancyStatusHelper.class);
@@ -53,7 +54,9 @@ public class GtfsRtOccupancyStatusHelper {
                     return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
                 }
 
-                return Optional.of(loadRatioToOccupancyStatus.lowerEntry(passengerCountPayload.getVehicleCounts().getVehicleLoadRatio()).getValue());
+                final double adjustedLoadRatio = Math.min(0, passengerCountPayload.getVehicleCounts().getVehicleLoadRatio() + getLoadRatioRandomization());
+
+                return Optional.of(loadRatioToOccupancyStatus.lowerEntry(adjustedLoadRatio).getValue());
             }
 
             //If passenger count from APC message is not available, but occu contains value other than 0, use that
@@ -64,5 +67,9 @@ public class GtfsRtOccupancyStatusHelper {
         }
 
         return Optional.empty();
+    }
+
+    private static double getLoadRatioRandomization() {
+        return ThreadLocalRandom.current().nextDouble(-0.05, 0.05);
     }
 }
