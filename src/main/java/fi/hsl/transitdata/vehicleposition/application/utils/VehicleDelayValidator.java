@@ -8,16 +8,11 @@ public class VehicleDelayValidator {
 
     private static final Logger log = LoggerFactory.getLogger(VehicleDelayValidator.class);
 
-    private final long maximumDelay;
+    private final long maximumDelayInSeconds;
     private final boolean isEnabled;
 
-    public VehicleDelayValidator(long maximumDelay) {
-        this.maximumDelay = maximumDelay;
-        this.isEnabled = false;
-    }
-
-    public VehicleDelayValidator(long maximumDelay, boolean isEnabled) {
-        this.maximumDelay = maximumDelay;
+    public VehicleDelayValidator(long maximumDelayInSeconds, boolean isEnabled) {
+        this.maximumDelayInSeconds = maximumDelayInSeconds;
         this.isEnabled = isEnabled;
     }
 
@@ -26,11 +21,11 @@ public class VehicleDelayValidator {
             return true;
         }
 
-        if (hfpData.getPayload().getDl() < maximumDelay) {
+        if (hfpData.getPayload().getDl() < maximumDelayInSeconds) {
             return true;
         }
 
-        log.warn("Vehicle {} had delay (dl) too big (vehicle: {}, Maximum delay allowed: {})", hfpData.getTopic().getUniqueVehicleId(), hfpData.getPayload().getTsi(), maximumDelay);
+        log.warn("Vehicle {} had delay (dl) too big (vehicle: {}, Maximum delay allowed: {})", hfpData.getTopic().getUniqueVehicleId(), hfpData.getPayload().getTsi(), maximumDelayInSeconds);
         return false;
     }
 }
