@@ -23,7 +23,7 @@ public class VehicleDelayValidator {
             return true;
         }
 
-        log.debug("Vehicle {} had delay (dl) too big (vehicle: {}, Maximum delay allowed: {})", hfpData.getTopic().getUniqueVehicleId(), hfpData.getPayload().getTsi(), maximumDelayInSeconds);
+        log.debug("Vehicle {} had delay (dl) too big (vehicle: {}, Maximum delay allowed: {})", hfpData.getTopic().getUniqueVehicleId(), hfpData.getPayload().getDl(), maximumDelayInSeconds);
         return false;
     }
 }
