@@ -14,6 +14,7 @@ import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtGenerator;
 import fi.hsl.transitdata.vehicleposition.application.gtfsrt.GtfsRtOccupancyStatusHelper;
 import fi.hsl.transitdata.vehicleposition.application.utils.PassengerCountCache;
 import fi.hsl.transitdata.vehicleposition.application.utils.TripVehicleCache;
+import fi.hsl.transitdata.vehicleposition.application.utils.VehicleDelayValidator;
 import fi.hsl.transitdata.vehicleposition.application.utils.VehicleTimestampValidator;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
@@ -40,6 +41,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     private final StopStatusProcessor stopStatusProcessor;
     private final VehicleTimestampValidator vehicleTimestampValidator;
 
+    private final VehicleDelayValidator vehicleDelayValidator;
+
     private final GtfsRtOccupancyStatusHelper gtfsRtOccupancyStatusHelper;
 
     private long messagesProcessed = 0;
@@ -59,6 +62,7 @@ public class VehiclePositionHandler implements IMessageHandler {
         tripVehicleCache = new TripVehicleCache();
         stopStatusProcessor = new StopStatusProcessor();
         vehicleTimestampValidator = new VehicleTimestampValidator(config.getDuration("processor.vehicleposition.maxTimeDifference", TimeUnit.SECONDS));
+        vehicleDelayValidator = new VehicleDelayValidator(config.getDuration("processor.vehicleposition.maxDelayAllowed", TimeUnit.SECONDS));
 
         addedTripsEnabledModes = Arrays.stream(config.getString("processor.vehicleposition.addedTripEnabledModes").split(","))
                 .map(Hfp.Topic.TransportMode::valueOf)
@@ -133,6 +137,11 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 if (!vehicleTimestampValidator.validateTimestamp(data, message.getEventTime())) {
                     //Vehicle had invalid timestamp..
+                    return;
+                }
+
+                if (!vehicleDelayValidator.validateDelay(data)) {
+                    // Vehicle was delayed too much
                     return;
                 }
 
