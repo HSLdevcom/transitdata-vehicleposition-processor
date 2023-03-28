@@ -13,16 +13,16 @@ public class PassengerCountCache {
     //TODO: this should be configurable
     private static final Duration MAX_AGE = Duration.ofMinutes(5);
 
-    private final Cache<VehicleIdAndTrip, PassengerCount.Payload> passengerCountCache = Caffeine.newBuilder()
+    private final Cache<VehicleIdAndTrip, PassengerCount.Data> passengerCountCache = Caffeine.newBuilder()
             .expireAfterWrite(MAX_AGE)
             .scheduler(Scheduler.systemScheduler())
             .build();
 
-    public void updatePassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId, PassengerCount.Payload passengerCount) {
+    public void updatePassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId, PassengerCount.Data passengerCount) {
         passengerCountCache.put(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId), passengerCount);
     }
 
-    public PassengerCount.Payload getPassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId) {
+    public PassengerCount.Data getPassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId) {
         return passengerCountCache.getIfPresent(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId));
     }
 

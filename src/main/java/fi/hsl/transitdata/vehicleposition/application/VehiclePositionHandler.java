@@ -99,7 +99,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 final String uniqueVehicleId = getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh());
 
-                passengerCountCache.updatePassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir(), data.getPayload());
+                passengerCountCache.updatePassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir(), data);
             } else if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
                 Hfp.Data data = Hfp.Data.parseFrom(message.getData());
 
@@ -139,13 +139,13 @@ public class VehiclePositionHandler implements IMessageHandler {
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
 
                 String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
-                PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
-                if (!isValidPassengerCountData(passengerCount)) {
+                PassengerCount.Data passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
+                if (!isValidPassengerCountData(passengerCount.getPayload())) {
                     if (passengerCount != null) {
                         log.debug("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
                                 uniqueVehicleId,
-                                passengerCount.getVehicleCounts().getVehicleLoad(),
-                                passengerCount.getVehicleCounts().getVehicleLoadRatio());
+                                passengerCount.getPayload().getVehicleCounts().getVehicleLoad(),
+                                passengerCount.getPayload().getVehicleCounts().getVehicleLoadRatio());
                     }
 
                     //Don't use invalid data
