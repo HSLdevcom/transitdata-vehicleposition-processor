@@ -1,6 +1,7 @@
 package fi.hsl.transitdata.vehicleposition.application;
 
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.transit.realtime.GtfsRealtime;
 import com.typesafe.config.Config;
 import fi.hsl.common.gtfsrt.FeedMessageFactory;
@@ -99,21 +100,38 @@ public class VehiclePositionHandler implements IMessageHandler {
     public void handleMessage(Message message) {
         try {
             if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.PassengerCount)) {
-                PassengerCount.Data data = PassengerCount.Data.parseFrom(message.getData());
-
+                log.info("Starting to handle passenger count data");
+                PassengerCount.Data data = null;
+                try {
+                    data = PassengerCount.Data.parseFrom(message.getData());
+                } catch (InvalidProtocolBufferException e) {
+                    log.error("Failed to parse passenger count data", e);
+                    throw new Exception(e);
+                }
+    
                 final String uniqueVehicleId = getUniqueVehicleId(data.getPayload().getOper(), data.getPayload().getVeh());
 
                 passengerCountCache.updatePassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir(), data.getPayload());
+                log.info("Done handling passenger count data");
             } else if (TransitdataSchema.hasProtobufSchema(message, TransitdataProperties.ProtobufSchema.HfpData)) {
-                Hfp.Data data = Hfp.Data.parseFrom(message.getData());
-
+                log.info("Starting to handle HfpData");
+                Hfp.Data data = null;
+                try {
+                    data = Hfp.Data.parseFrom(message.getData());
+                } catch (InvalidProtocolBufferException e) {
+                    log.error("Failed to parse HfpData", e);
+                    throw new Exception(e);
+                }
+    
                 //Ignore HFP messages that are not sent from vehicles on a journey
                 if (data.getTopic().getJourneyType() != Hfp.Topic.JourneyType.journey) {
+                    log.info("Ignore HFP messages that are not sent from vehicles on a journey");
                     return;
                 }
 
                 //Ignore HFP messages that are not sent from vehicles on an ongoing journey
                 if (data.getTopic().getTemporalType() != Hfp.Topic.TemporalType.ongoing) {
+                    log.info("Ignore HFP messages that are not sent from vehicles on an ongoing journey");
                     return;
                 }
 
@@ -123,7 +141,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PAS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.ARS &&
                         data.getTopic().getEventType() != Hfp.Topic.EventType.PDE) {
-                    log.debug("Ignoring HFP message with event type {}", data.getTopic().getEventType());
+                    log.info("Ignoring HFP message with event type {}", data.getTopic().getEventType());
                     return;
                 }
 
@@ -131,27 +149,29 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                 if (tripAlreadyTaken && !addedTripsEnabledModes.contains(data.getTopic().getTransportMode())) {
                     //If some other vehicle was registered for the trip and the vehicle is not a bus, do not produce vehicle position
-                    log.debug("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
+                    log.info("There was already a vehicle registered for trip {} / {} / {} / {} - not producing vehicle position message for {}", data.getTopic().getRouteId(), data.getPayload().getOday(), data.getTopic().getStartTime(), data.getPayload().getDir(), data.getTopic().getUniqueVehicleId());
                     return;
                 }
 
                 if (!vehicleTimestampValidator.validateTimestamp(data, message.getEventTime())) {
                     //Vehicle had invalid timestamp..
+                    log.info("Vehicle had invalid timestamp");
                     return;
                 }
 
                 if (!vehicleDelayValidator.validateDelay(data)) {
                     // Vehicle was delayed too much
+                    log.info("Vehicle was delayed too much");
                     return;
                 }
 
                 StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-
+                
                 String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
                 PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
                 if (!isValidPassengerCountData(passengerCount)) {
                     if (passengerCount != null) {
-                        log.debug("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
+                        log.info("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
                                 uniqueVehicleId,
                                 passengerCount.getVehicleCounts().getVehicleLoad(),
                                 passengerCount.getVehicleCounts().getVehicleLoadRatio());
@@ -178,6 +198,7 @@ public class VehiclePositionHandler implements IMessageHandler {
 
                     sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage, data.getPayload().getTsi());
                 }
+                log.info("Done handling HfpData");
             } else {
                 log.warn("Invalid protobuf schema, expecting HfpData");
             }
@@ -256,7 +277,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                 }
 
                 if (messageId != null) {
-                    log.debug("Produced a new position for vehicle {} with timestamp {}", vehicleId, timestampMs);
+                    log.info("Produced a new position for vehicle {} with timestamp {}", vehicleId, timestampMs);
                 }
             });
     }
