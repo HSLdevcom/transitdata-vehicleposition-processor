@@ -181,22 +181,16 @@ public class VehiclePositionHandler implements IMessageHandler {
                     log.error("Validations failed");
                     throw x;
                 }
-    
-                StopStatusProcessor.StopStatus stopStatus;
-                String uniqueVehicleId = null;
-                PassengerCount.Payload passengerCount = null;
+                
+                String detailMessage = "";
                 
                 try {
-                    stopStatus = stopStatusProcessor.getStopStatus(data);
-    
-                    uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
-                    passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
-                } catch (Exception x) {
-                    log.error("Failed to initialize variables stopStatus, uniqueVehicleId, passengerCount");
-                    throw x;
-                }
-                
-                try {
+                    StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
+                    detailMessage = "stopStatusProcessor.getStopStatus called";
+                    String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
+                    detailMessage = "getUniqueVehicleId called";
+                    PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
+                    detailMessage = "passengerCountCache.getPassengerCount";
                     if (!isValidPassengerCountData(passengerCount)) {
                         if (passengerCount != null) {
                             log.warn("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
@@ -208,14 +202,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                         //Don't use invalid data
                         passengerCount = null;
                     }
-                } catch (Exception x) {
-                    log.error("Failed to check passenger count");
-                    throw x;
-                }
-                
-                String detailMessage = "";
-                
-                try {
+                    detailMessage = "isValidPassengerCountData called";
                     Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
                     detailMessage = "Variable maybeOccupancyStatus initialized";
                     Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
