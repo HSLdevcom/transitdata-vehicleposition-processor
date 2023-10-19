@@ -182,15 +182,11 @@ public class VehiclePositionHandler implements IMessageHandler {
                     throw x;
                 }
                 
-                String detailMessage = "";
-                
                 try {
                     StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                    detailMessage = "stopStatusProcessor.getStopStatus called";
+    
                     String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
-                    detailMessage = "getUniqueVehicleId called";
                     PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
-                    detailMessage = "passengerCountCache.getPassengerCount";
                     if (!isValidPassengerCountData(passengerCount)) {
                         if (passengerCount != null) {
                             log.warn("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
@@ -202,27 +198,26 @@ public class VehiclePositionHandler implements IMessageHandler {
                         //Don't use invalid data
                         passengerCount = null;
                     }
-                    detailMessage = "isValidPassengerCountData called";
+    
                     Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
-                    detailMessage = "Variable maybeOccupancyStatus initialized";
+    
                     Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
-                    detailMessage = "Variable optionalVehiclePosition initialized";
+    
                     if (optionalVehiclePosition.isPresent()) {
-                        detailMessage = "optionalVehiclePosition.isPresent() called";
                         final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
-                        detailMessage = "optionalVehiclePosition.get() called";
+        
                         final String topicSuffix = getTopicSuffix(vehiclePosition);
-                        detailMessage = "getTopicSuffix(vehiclePosition) called";
+        
                         final GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), vehiclePosition, data.getPayload().getTsi());
-                        detailMessage = "FeedMessageFactory.createDifferentialFeedMessage called";
+        
                         if (Duration.ofMillis(System.currentTimeMillis() - (data.getPayload().getTsi() * 1000)).compareTo(DELAYED_MESSAGE_THRESHOLD) >= 0) {
                             messagesDelayed++;
                         }
-                        detailMessage = "If block done";
+        
                         sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage, data.getPayload().getTsi());
                     }
                 } catch (Exception x) {
-                    log.error("Preparing or sending pulsar message failed. {}", detailMessage);
+                    log.error("Preparing or sending pulsar message failed");
                     throw x;
                 }
             } else {
