@@ -202,7 +202,10 @@ public class VehiclePositionHandler implements IMessageHandler {
                         //Don't use invalid data
                         passengerCount = null;
                     }
-                    detailMessage = "isValidPassengerCountData(passengerCount) called";
+                    String gtfsRtOccupancyStatusHelperMessage = gtfsRtOccupancyStatusHelper == null ? " gtfsRtOccupancyStatusHelper is null." : " gtfsRtOccupancyStatusHelper not null.";
+                    String dataMessage = data == null ? " data is null." : " data not null.";
+                    String passengerCountMessage = passengerCount == null ? " passengerCount is null." : " passengerCount not null.";
+                    detailMessage = "isValidPassengerCountData(passengerCount) called." + gtfsRtOccupancyStatusHelperMessage + dataMessage + passengerCountMessage;
     
                     Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
                     detailMessage = "gtfsRtOccupancyStatusHelper.getOccupancyStatus called";
