@@ -205,8 +205,21 @@ public class VehiclePositionHandler implements IMessageHandler {
                     String gtfsRtOccupancyStatusHelperMessage = gtfsRtOccupancyStatusHelper == null ? " gtfsRtOccupancyStatusHelper is null." : " gtfsRtOccupancyStatusHelper not null.";
                     String dataMessage = data == null ? " data is null." : " data not null.";
                     String passengerCountMessage = passengerCount == null ? " passengerCount is null." : " passengerCount not null.";
-                    detailMessage = "isValidPassengerCountData(passengerCount) called." + gtfsRtOccupancyStatusHelperMessage + dataMessage + passengerCountMessage;
-    
+                    
+                    String passengerCountPayloadMessage = "";
+                    
+                    if (passengerCount != null) {
+                        if (passengerCount.getVehicleCounts() == null) {
+                            passengerCountPayloadMessage = " passengerCount.getVehicleCounts() is null.";
+                        } else {
+                            passengerCountPayloadMessage = " passengerCount.getVehicleCounts().getVehicleLoadRatio() = "
+                                    + passengerCount.getVehicleCounts().getVehicleLoadRatio();
+                        }
+                    }
+                    
+                    detailMessage = "isValidPassengerCountData(passengerCount) called." + gtfsRtOccupancyStatusHelperMessage
+                            + dataMessage + passengerCountMessage + passengerCountPayloadMessage;
+                    
                     Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
                     detailMessage = "gtfsRtOccupancyStatusHelper.getOccupancyStatus called";
                     Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
