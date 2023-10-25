@@ -2,6 +2,7 @@ package fi.hsl.transitdata.vehicleposition.application.gtfsrt;
 
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
+import fi.hsl.common.passengercount.proto.PassengerCount;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -36,10 +37,48 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
 
     @Test
-    public void testOccupancyStatus() {
-        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(Hfp.Payload.newBuilder().setSchemaVersion(1).setTsi(0).setTst("").setOccu(55).build(), null);
+    public void testHfpOccupancyStatus() {
+        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
+                gtfsRtOccupancyStatusHelper.getOccupancyStatus(Hfp.Payload.newBuilder().
+                        setSchemaVersion(1).setTsi(0).setTst("").setOccu(55).build(), null);
 
         assertTrue(occuStatus.isPresent());
         assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.STANDING_ROOM_ONLY, occuStatus.get());
+    }
+    
+    @Test
+    public void testHfpOccupancyStatusEmpty() {
+        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
+                gtfsRtOccupancyStatusHelper.getOccupancyStatus(Hfp.Payload.newBuilder().
+                        setSchemaVersion(1).setTsi(0).setTst("").setOccu(0).build(), null);
+        
+        assertTrue(occuStatus.isPresent());
+        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
+    }
+    
+    @Test
+    public void testPassengerCountOccupancyStatus() {
+        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
+                gtfsRtOccupancyStatusHelper.getOccupancyStatus(
+                        Hfp.Payload.newBuilder().
+                                setSchemaVersion(1).setTsi(0).setTst("").setOccu(0).build(),
+                        PassengerCount.Payload.newBuilder().setVehicleCounts(PassengerCount.VehicleCounts.newBuilder()
+                                .setCountQuality("").setVehicleLoad(10).setVehicleLoadRatio(0.55).build()).build());
+        
+        assertTrue(occuStatus.isPresent());
+        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.STANDING_ROOM_ONLY, occuStatus.get());
+    }
+    
+    @Test
+    public void testPassengerCountOccupancyStatusEmpty() {
+        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
+                gtfsRtOccupancyStatusHelper.getOccupancyStatus(
+                        Hfp.Payload.newBuilder().
+                                setSchemaVersion(1).setTsi(0).setTst("").setOccu(0).build(),
+                        PassengerCount.Payload.newBuilder().setVehicleCounts(PassengerCount.VehicleCounts.newBuilder()
+                                .setCountQuality("").setVehicleLoad(0).setVehicleLoadRatio(0.0).build()).build());
+    
+        assertTrue(occuStatus.isPresent());
+        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
     }
 }

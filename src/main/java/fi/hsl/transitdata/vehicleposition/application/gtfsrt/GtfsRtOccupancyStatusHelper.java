@@ -60,6 +60,8 @@ public class GtfsRtOccupancyStatusHelper {
             //Currently occu is only available for Suomenlinna ferries
             if (hfpPayload.getOccu() != 0) {
                 return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
+            } else {
+                return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
             }
         }
 
