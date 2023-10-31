@@ -58,7 +58,7 @@ public class GtfsRtOccupancyStatusHelper {
 
             //If passenger count from APC message is not available, but occu contains value other than 0, use that
             //Currently occu is only available for Suomenlinna ferries
-            if (hfpPayload.getOccu() != 0) {
+            if (hfpPayload.getOccu() > 0) {
                 return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
             } else {
                 return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
