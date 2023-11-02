@@ -51,11 +51,13 @@ public class GtfsRtOccupancyStatusHelper {
         }
         
         boolean containsId = false;
+        int oper = hfpPayload.getOper();
+        int veh = hfpPayload.getVeh();
         
         try {
-            containsId = passengerCountEnabledVehicles.contains(hfpPayload.getOper() + "/" + hfpPayload.getVeh());
+            containsId = passengerCountEnabledVehicles.contains(oper + "/" + veh);
         } catch (Exception x) {
-            throw new RuntimeException("Contains failed", x);
+            throw new RuntimeException("Contains failed (oper=" + oper + ", veh=" + veh + ")", x);
         }
         
         if (passengerCountEnabledVehicles == null || containsId) {
