@@ -182,6 +182,8 @@ public class VehiclePositionHandler implements IMessageHandler {
                     throw x;
                 }
                 
+                String detailMessage = "";
+                
                 try {
                     StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
                     String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
@@ -198,8 +200,15 @@ public class VehiclePositionHandler implements IMessageHandler {
                         //Don't use invalid data
                         passengerCount = null;
                     }
-                    
-                    Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
+                    detailMessage = "Calling method gtfsRtOccupancyStatusHelper.getOccupancyStatus";
+                    Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = Optional.empty();
+                    try {
+                        maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
+                    } catch (Exception x) {
+                        detailMessage = "Method gtfsRtOccupancyStatusHelper.getOccupancyStatus failed: " + x.toString();
+                        throw x;
+                    }
+                    detailMessage = "Method gtfsRtOccupancyStatusHelper.getOccupancyStatus returned: " + (maybeOccupancyStatus.isPresent() ? maybeOccupancyStatus.get() : "null");
                     Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
                     
                     if (optionalVehiclePosition.isPresent()) {
@@ -213,7 +222,7 @@ public class VehiclePositionHandler implements IMessageHandler {
                         sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage, data.getPayload().getTsi());
                     }
                 } catch (Exception x) {
-                    log.error("Preparing or sending pulsar message failed.", x);
+                    log.error("Preparing or sending pulsar message failed. {}", detailMessage);
                     throw x;
                 }
             } else {
