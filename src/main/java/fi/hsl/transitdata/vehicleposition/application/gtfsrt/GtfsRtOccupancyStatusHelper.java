@@ -1,5 +1,6 @@
 package fi.hsl.transitdata.vehicleposition.application.gtfsrt;
 
+import com.dslplatform.json.runtime.MapAnalyzer;
 import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.common.passengercount.proto.PassengerCount;
@@ -41,27 +42,51 @@ public class GtfsRtOccupancyStatusHelper {
     }
 
     public Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload hfpPayload, PassengerCount.Payload passengerCountPayload) {
-        if (passengerCountEnabledVehicles == null || passengerCountEnabledVehicles.contains(hfpPayload.getOper() + "/" + hfpPayload.getVeh())) {
+        boolean containsId = false;
+        
+        try {
+            containsId = passengerCountEnabledVehicles.contains(hfpPayload.getOper() + "/" + hfpPayload.getVeh());
+        } catch (Exception x) {
+            throw new RuntimeException("Contains failed", x);
+        }
+        
+        if (passengerCountEnabledVehicles == null || containsId) {
             //If occu field is 100, the driver has marked the vehicle as full
-            if (hfpPayload.getOccu() == 100) {
-                return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
+            try {
+                if (hfpPayload.getOccu() == 100) {
+                    return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
+                }
+            } catch (Exception x) {
+                throw new RuntimeException("GetOccu 1 failed", x);
             }
 
             if (passengerCountPayload != null) {
-                if (passengerCountPayload.getVehicleCounts().hasVehicleLoad() && passengerCountPayload.getVehicleCounts().getVehicleLoad() == 0) {
-                    //If vehicle load is zero, vehicle load ratio is unavailable and the vehicle is empty
-                    return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
+                try {
+                    if (passengerCountPayload.getVehicleCounts().hasVehicleLoad() && passengerCountPayload.getVehicleCounts().getVehicleLoad() == 0) {
+                        //If vehicle load is zero, vehicle load ratio is unavailable and the vehicle is empty
+                        return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
+                    }
+                } catch (Exception x) {
+                    throw new RuntimeException("passengerCountPayload 1 failed", x);
                 }
-
-                return Optional.of(loadRatioToOccupancyStatus.lowerEntry(passengerCountPayload.getVehicleCounts().getVehicleLoadRatio()).getValue());
+                
+                try {
+                    return Optional.of(loadRatioToOccupancyStatus.lowerEntry(passengerCountPayload.getVehicleCounts().getVehicleLoadRatio()).getValue());
+                } catch (Exception x) {
+                    throw new RuntimeException("passengerCountPayload 2 failed", x);
+                }
             }
 
             //If passenger count from APC message is not available, but occu contains value other than 0, use that
             //Currently occu is only available for Suomenlinna ferries
-            if (hfpPayload.getOccu() > 0) {
-                return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
-            } else {
-                return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
+            try {
+                if (hfpPayload.getOccu() > 0) {
+                    return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
+                } else {
+                    return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
+                }
+            } catch (Exception x) {
+                throw new RuntimeException("GetOccu 2 failed", x);
             }
         }
 
