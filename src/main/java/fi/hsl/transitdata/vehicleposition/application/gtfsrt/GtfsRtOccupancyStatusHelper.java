@@ -42,6 +42,14 @@ public class GtfsRtOccupancyStatusHelper {
     }
 
     public Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload hfpPayload, PassengerCount.Payload passengerCountPayload) {
+        if (passengerCountEnabledVehicles == null) {
+            throw new RuntimeException("passengerCountEnabledVehicles is null");
+        }
+        
+        if (hfpPayload == null) {
+            throw new RuntimeException("hfpPayload is null");
+        }
+        
         boolean containsId = false;
         
         try {
