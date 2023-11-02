@@ -182,15 +182,11 @@ public class VehiclePositionHandler implements IMessageHandler {
                     throw x;
                 }
                 
-                String detailMessage = "";
-                
                 try {
                     StopStatusProcessor.StopStatus stopStatus = stopStatusProcessor.getStopStatus(data);
-                    detailMessage = "stopStatusProcessor.getStopStatus(data) called";
                     String uniqueVehicleId = getUniqueVehicleId(data.getTopic().getOperatorId(), data.getTopic().getVehicleNumber());
-                    detailMessage = "getUniqueVehicleId called";
                     PassengerCount.Payload passengerCount = passengerCountCache.getPassengerCount(uniqueVehicleId, data.getPayload().getRoute(), data.getPayload().getOday(), data.getPayload().getStart(), data.getPayload().getDir());
-                    detailMessage = "passengerCountCache.getPassengerCount called";
+                    
                     if (!isValidPassengerCountData(passengerCount)) {
                         if (passengerCount != null) {
                             log.debug("Passenger count for vehicle {} was invalid (vehicle load: {}, vehicle load ratio: {})",
@@ -202,45 +198,22 @@ public class VehiclePositionHandler implements IMessageHandler {
                         //Don't use invalid data
                         passengerCount = null;
                     }
-                    String gtfsRtOccupancyStatusHelperMessage = gtfsRtOccupancyStatusHelper == null ? " gtfsRtOccupancyStatusHelper is null." : " gtfsRtOccupancyStatusHelper not null.";
-                    String dataMessage = data == null ? " data is null." : " data not null.";
-                    String passengerCountMessage = passengerCount == null ? " passengerCount is null." : " passengerCount not null.";
-                    
-                    String passengerCountPayloadMessage = "";
-                    
-                    if (passengerCount != null) {
-                        if (passengerCount.getVehicleCounts() == null) {
-                            passengerCountPayloadMessage = " passengerCount.getVehicleCounts() is null.";
-                        } else {
-                            passengerCountPayloadMessage = " passengerCount.getVehicleCounts().getVehicleLoadRatio() = "
-                                    + passengerCount.getVehicleCounts().getVehicleLoadRatio();
-                        }
-                    }
-                    
-                    detailMessage = "isValidPassengerCountData(passengerCount) called." + gtfsRtOccupancyStatusHelperMessage
-                            + dataMessage + passengerCountMessage + passengerCountPayloadMessage;
                     
                     Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
-                    detailMessage = "gtfsRtOccupancyStatusHelper.getOccupancyStatus called";
                     Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
-                    detailMessage = "GtfsRtGenerator.generateVehiclePosition called";
+                    
                     if (optionalVehiclePosition.isPresent()) {
-                        detailMessage = "optionalVehiclePosition.isPresent() called";
                         final GtfsRealtime.VehiclePosition vehiclePosition = optionalVehiclePosition.get();
-                        detailMessage = "optionalVehiclePosition.get() called";
                         final String topicSuffix = getTopicSuffix(vehiclePosition);
-                        detailMessage = "getTopicSuffix(vehiclePosition) called";
                         final GtfsRealtime.FeedMessage feedMessage = FeedMessageFactory.createDifferentialFeedMessage(generateEntityId(data), vehiclePosition, data.getPayload().getTsi());
-                        detailMessage = "ssageFactory.createDifferentialFeedMessage called";
+                        
                         if (Duration.ofMillis(System.currentTimeMillis() - (data.getPayload().getTsi() * 1000)).compareTo(DELAYED_MESSAGE_THRESHOLD) >= 0) {
                             messagesDelayed++;
                         }
-                        detailMessage = "Duration.ofMillis called";
                         sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage, data.getPayload().getTsi());
                     }
-                    detailMessage = "If there is an error, you should not see this";
                 } catch (Exception x) {
-                    log.error("Preparing or sending pulsar message failed. {}", detailMessage);
+                    log.error("Preparing or sending pulsar message failed.", x);
                     throw x;
                 }
             } else {
