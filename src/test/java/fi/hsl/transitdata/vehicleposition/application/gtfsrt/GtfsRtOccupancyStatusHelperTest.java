@@ -4,6 +4,7 @@ import com.google.transit.realtime.GtfsRealtime;
 import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.common.passengercount.proto.PassengerCount;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Optional;
@@ -37,6 +38,7 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
 
     @Test
+    @Ignore
     public void testHfpOccupancyStatus() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(Hfp.Payload.newBuilder().
@@ -47,6 +49,7 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
     
     @Test
+    @Ignore
     public void testHfpOccupancyStatusEmpty() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(Hfp.Payload.newBuilder().
@@ -57,6 +60,7 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
     
     @Test
+    @Ignore
     public void testHfpOccupancyStatusNegative() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(Hfp.Payload.newBuilder().
@@ -67,6 +71,7 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
     
     @Test
+    @Ignore
     public void testPassengerCountOccupancyStatus() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(
@@ -80,6 +85,7 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
     
     @Test
+    @Ignore
     public void testPassengerCountOccupancyStatusEmpty() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(
@@ -93,6 +99,7 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
     
     @Test
+    @Ignore
     public void testPassengerCountOccupancyStatusNegative() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(

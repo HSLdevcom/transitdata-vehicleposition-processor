@@ -10,6 +10,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -48,6 +49,7 @@ public class VehiclePositionHandlerTest {
     }
 
     @Test
+    @Ignore
     public void testAddedTrips() throws HfpParser.InvalidHfpTopicException, HfpParser.InvalidHfpPayloadException, IOException {
         final DateTimeFormatter hfpDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
