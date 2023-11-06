@@ -56,6 +56,7 @@ public class GtfsRtOccupancyStatusHelper {
             try {
                 containsId = passengerCountEnabledVehicles.contains(oper + "/" + veh);
             } catch (Exception x) {
+                log.error("Contains failed (oper=" + oper + ", veh=" + veh + ")");
                 throw new RuntimeException("Contains failed (oper=" + oper + ", veh=" + veh + ")", x);
             }
         }
@@ -67,6 +68,7 @@ public class GtfsRtOccupancyStatusHelper {
                     return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
                 }
             } catch (Exception x) {
+                log.error("GetOccu 1 failed");
                 throw new RuntimeException("GetOccu 1 failed", x);
             }
 
@@ -77,6 +79,7 @@ public class GtfsRtOccupancyStatusHelper {
                         return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
                     }
                 } catch (Exception x) {
+                    log.error("passengerCountPayload 1 failed");
                     throw new RuntimeException("passengerCountPayload 1 failed", x);
                 }
     
@@ -85,6 +88,7 @@ public class GtfsRtOccupancyStatusHelper {
                 try {
                     vehicleLoadRatio = passengerCountPayload.getVehicleCounts().getVehicleLoadRatio();
                 } catch (Exception x) {
+                    log.error("getVehicleLoadRatio() failed");
                     throw new RuntimeException("getVehicleLoadRatio() failed", x);
                 }
     
@@ -93,10 +97,12 @@ public class GtfsRtOccupancyStatusHelper {
                 try {
                     doubleOccupancyStatusEntry = loadRatioToOccupancyStatus.lowerEntry(vehicleLoadRatio);
                 } catch (Exception x) {
+                    log.error("lowerEntry(vehicleLoadRatio) failed (vehicleLoadRatio=" + vehicleLoadRatio + ")");
                     throw new RuntimeException("lowerEntry(vehicleLoadRatio) failed (vehicleLoadRatio=" + vehicleLoadRatio + ")", x);
                 }
                 
                 if (doubleOccupancyStatusEntry == null) {
+                    log.error("doubleOccupancyStatusEntry is null. vehicleLoadRatio=" + vehicleLoadRatio);
                     throw new RuntimeException("doubleOccupancyStatusEntry is null. vehicleLoadRatio=" + vehicleLoadRatio);
                 }
     
@@ -105,16 +111,19 @@ public class GtfsRtOccupancyStatusHelper {
                 try {
                     occupancyStatus = doubleOccupancyStatusEntry.getValue();
                 } catch (Exception x) {
+                    log.error("getValue() failed");
                     throw new RuntimeException("getValue() failed (Key=" + doubleOccupancyStatusEntry.getKey() + ", Value=" + doubleOccupancyStatusEntry.getValue() + ")", x);
                 }
     
                 if (occupancyStatus == null) {
+                    log.error("occupancyStatus is null");
                     throw new RuntimeException("occupancyStatus is null");
                 }
                 
                 try {
                     return Optional.of(occupancyStatus);
                 } catch (Exception x) {
+                    log.error("passengerCountPayload 2 failed (occupancyStatus=" + occupancyStatus + ")");
                     throw new RuntimeException("passengerCountPayload 2 failed (occupancyStatus=" + occupancyStatus + ")", x);
                 }
             }
