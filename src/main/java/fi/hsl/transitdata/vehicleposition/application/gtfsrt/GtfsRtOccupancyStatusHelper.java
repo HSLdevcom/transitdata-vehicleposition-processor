@@ -95,6 +95,10 @@ public class GtfsRtOccupancyStatusHelper {
                 } catch (Exception x) {
                     throw new RuntimeException("lowerEntry(vehicleLoadRatio) failed (vehicleLoadRatio=" + vehicleLoadRatio + ")", x);
                 }
+                
+                if (doubleOccupancyStatusEntry == null) {
+                    throw new RuntimeException("doubleOccupancyStatusEntry is null. vehicleLoadRatio=" + vehicleLoadRatio);
+                }
     
                 GtfsRealtime.VehiclePosition.OccupancyStatus occupancyStatus = null;
                 
@@ -102,6 +106,10 @@ public class GtfsRtOccupancyStatusHelper {
                     occupancyStatus = doubleOccupancyStatusEntry.getValue();
                 } catch (Exception x) {
                     throw new RuntimeException("getValue() failed (Key=" + doubleOccupancyStatusEntry.getKey() + ", Value=" + doubleOccupancyStatusEntry.getValue() + ")", x);
+                }
+    
+                if (occupancyStatus == null) {
+                    throw new RuntimeException("occupancyStatus is null");
                 }
                 
                 try {
