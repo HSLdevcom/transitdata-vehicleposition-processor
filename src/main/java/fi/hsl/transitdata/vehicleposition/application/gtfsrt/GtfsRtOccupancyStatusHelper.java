@@ -52,7 +52,11 @@ public class GtfsRtOccupancyStatusHelper {
                     //If vehicle load is zero, vehicle load ratio is unavailable and the vehicle is empty
                     return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
                 }
-
+                
+                if (passengerCountPayload.getVehicleCounts().getVehicleLoadRatio() <= 0.0) {
+                    return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
+                }
+                
                 return Optional.of(loadRatioToOccupancyStatus.lowerEntry(passengerCountPayload.getVehicleCounts().getVehicleLoadRatio()).getValue());
             }
 

@@ -105,11 +105,22 @@ public class GtfsRtOccupancyStatusHelperTest {
     }
     
     @Test
-    public void testPassengerCountOccupancyStatusNegative() {
+    public void testPassengerCountOccupancyStatusWithVehicleLoadZeroWithVehicleLoadRatioNegative() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(
                         getHfpPayload(0),
                         getPassengerCountPayload(0, -1.0));
+        
+        assertTrue(occuStatus.isPresent());
+        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
+    }
+    
+    @Test
+    public void testPassengerCountOccupancyStatusWithVehicleLoadPositiveWithVehicleLoadRatioNegative() {
+        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
+                gtfsRtOccupancyStatusHelper.getOccupancyStatus(
+                        getHfpPayload(0),
+                        getPassengerCountPayload(1, -1.0));
         
         assertTrue(occuStatus.isPresent());
         assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
