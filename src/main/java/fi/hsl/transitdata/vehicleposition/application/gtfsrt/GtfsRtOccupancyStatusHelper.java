@@ -43,12 +43,12 @@ public class GtfsRtOccupancyStatusHelper {
     public Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload hfpPayload, PassengerCount.Payload passengerCountPayload) {
         if (passengerCountEnabledVehicles == null || passengerCountEnabledVehicles.contains(hfpPayload.getOper() + "/" + hfpPayload.getVeh())) {
             //If occu field is 100, the driver has marked the vehicle as full
-            if (hfpPayload.getOccu() == 100) {
+            if (hfpPayload.getOccu() >= 100) {
                 return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.FULL);
             }
 
             if (passengerCountPayload != null) {
-                if (passengerCountPayload.getVehicleCounts().hasVehicleLoad() && passengerCountPayload.getVehicleCounts().getVehicleLoad() == 0) {
+                if (passengerCountPayload.getVehicleCounts().hasVehicleLoad() && passengerCountPayload.getVehicleCounts().getVehicleLoad() <= 0) {
                     //If vehicle load is zero, vehicle load ratio is unavailable and the vehicle is empty
                     return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
                 }
