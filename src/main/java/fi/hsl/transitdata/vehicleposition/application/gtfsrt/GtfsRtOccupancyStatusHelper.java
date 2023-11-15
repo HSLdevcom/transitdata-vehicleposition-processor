@@ -62,9 +62,13 @@ public class GtfsRtOccupancyStatusHelper {
 
             //If passenger count from APC message is not available, but occu contains value other than 0, use that
             //Currently occu is only available for Suomenlinna ferries
-            if (hfpPayload.getOccu() > 0) {
-                return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
-            } else {
+            //Do not use occu == 0 without checking the transport mode as many
+            //vehicles send '"occu":0' as part of the HFP MQTT payload probably
+            //to mean "not full".
+            if (hfpPayload.hasTransportMode() && hfpPayload.getTransportMode() == Hfp.Topic.TransportMode.ferry) {
+                if (hfpPayload.getOccu() > 0) {
+                    return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
+                }
                 return Optional.of(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY);
             }
         }
