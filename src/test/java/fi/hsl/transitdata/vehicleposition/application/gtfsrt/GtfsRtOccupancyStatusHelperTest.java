@@ -42,7 +42,15 @@ public class GtfsRtOccupancyStatusHelperTest {
         return Hfp.Payload.newBuilder().
                 setSchemaVersion(1).setTsi(0).setTst("").setOccu(occu).build();
     }
-    
+
+    @NotNull
+    private static Hfp.Payload getFerryHfpPayload(int occu) {
+        return Hfp.Payload.newBuilder().
+                setSchemaVersion(1).setTsi(0).setTst("").setOccu(occu).
+                setTransportmode(Hfp.Topic.TransportMode.ferry).
+                build();
+    }
+
     @NotNull
     private static PassengerCount.Payload getPassengerCountPayload(int vehicleLoad, double vehicleLoadRatio) {
         return PassengerCount.Payload.newBuilder().setVehicleCounts(PassengerCount.VehicleCounts.newBuilder()
@@ -59,27 +67,47 @@ public class GtfsRtOccupancyStatusHelperTest {
         assertTrue(occuStatus.isPresent());
         assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.STANDING_ROOM_ONLY, occuStatus.get());
     }
-    
+
     @Test
-    public void testHfpOccupancyStatusEmpty() {
+    public void testHfpOccupancyStatusEmptyForFerry() {
+        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
+                gtfsRtOccupancyStatusHelper.getOccupancyStatus(
+                        getFerryHfpPayload(0),
+                        null);
+
+        assertTrue(occuStatus.isPresent());
+        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
+    }
+
+    @Test
+    public void testHfpOccupancyStatusEmptyForNonFerry() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(
                         getHfpPayload(0),
+                        null);
+
+        assertFalse(occuStatus.isPresent());
+    }
+
+    @Test
+    public void testHfpOccupancyStatusNegativeForFerry() {
+        Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
+                gtfsRtOccupancyStatusHelper.getOccupancyStatus(
+                        getFerryHfpPayload(-1),
                         null);
         
         assertTrue(occuStatus.isPresent());
         assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
     }
-    
+
     @Test
-    public void testHfpOccupancyStatusNegative() {
+    public void testHfpOccupancyStatusNegativeForNonFerry() {
         Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occuStatus =
                 gtfsRtOccupancyStatusHelper.getOccupancyStatus(
                         getHfpPayload(-1),
                         null);
         
-        assertTrue(occuStatus.isPresent());
-        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
+        assertFalse(occuStatus.isPresent());
     }
     
     @Test
