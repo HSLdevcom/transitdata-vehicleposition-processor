@@ -67,8 +67,7 @@ public class GtfsRtOccupancyStatusHelperTest {
                         getHfpPayload(0),
                         null);
         
-        assertTrue(occuStatus.isPresent());
-        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
+        assertTrue(occuStatus.isEmpty());
     }
     
     @Test
@@ -78,8 +77,7 @@ public class GtfsRtOccupancyStatusHelperTest {
                         getHfpPayload(-1),
                         null);
         
-        assertTrue(occuStatus.isPresent());
-        assertEquals(GtfsRealtime.VehiclePosition.OccupancyStatus.EMPTY, occuStatus.get());
+        assertTrue(occuStatus.isEmpty());
     }
     
     @Test
