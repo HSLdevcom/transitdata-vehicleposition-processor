@@ -40,7 +40,10 @@ public class GtfsRtOccupancyStatusHelper {
         this(occuToOccupancyStatus, loadRatioToOccupancyStatus, null);
     }
 
-    public Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(Hfp.Payload hfpPayload, PassengerCount.Payload passengerCountPayload) {
+    public Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> getOccupancyStatus(
+            Hfp.Payload hfpPayload,
+            PassengerCount.Payload passengerCountPayload,
+            Hfp.Topic.TransportMode transportMode) {
         if (passengerCountEnabledVehicles == null || passengerCountEnabledVehicles.contains(hfpPayload.getOper() + "/" + hfpPayload.getVeh())) {
             //If occu field is 100, the driver has marked the vehicle as full
             if (hfpPayload.getOccu() >= 100) {
@@ -65,7 +68,7 @@ public class GtfsRtOccupancyStatusHelper {
             //Do not use occu == 0 without checking the transport mode as many
             //vehicles send '"occu":0' as part of the HFP MQTT payload probably
             //to mean "not full".
-            if (hfpPayload.hasTransportMode() && hfpPayload.getTransportMode() == Hfp.Topic.TransportMode.ferry) {
+            if (transportMode != null && transportMode == Hfp.Topic.TransportMode.ferry) {
                 if (hfpPayload.getOccu() > 0) {
                     return Optional.of(occuToOccupancyStatus.lowerEntry(hfpPayload.getOccu()).getValue());
                 }

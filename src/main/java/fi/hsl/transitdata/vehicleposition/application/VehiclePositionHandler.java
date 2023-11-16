@@ -199,7 +199,8 @@ public class VehiclePositionHandler implements IMessageHandler {
                         passengerCount = null;
                     }
                     
-                    Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus = gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount);
+                    Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> maybeOccupancyStatus =
+                            gtfsRtOccupancyStatusHelper.getOccupancyStatus(data.getPayload(), passengerCount, data.getTopic().getTransportMode());
                     Optional<GtfsRealtime.VehiclePosition> optionalVehiclePosition = GtfsRtGenerator.generateVehiclePosition(data, tripAlreadyTaken ? GtfsRealtime.TripDescriptor.ScheduleRelationship.ADDED : GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, stopStatus, maybeOccupancyStatus);
                     
                     if (optionalVehiclePosition.isPresent()) {
