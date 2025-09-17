@@ -11,18 +11,20 @@ public class TimeUtils {
 
     public static String getStartTime(Hfp.Data data) {
         //Implementation based on https://digitransit.fi/en/developers/apis/1-routing-api/routes/#a-namefuzzytripaquery-a-trip-without-its-id
-        final ZonedDateTime timeZonedTst = ZonedDateTime.ofInstant(Instant.ofEpochSecond(data.getPayload().getTsi()), ZoneOffset.UTC).withZoneSameInstant(TZ);
+        final ZonedDateTime timeZonedTst = ZonedDateTime
+                .ofInstant(Instant.ofEpochSecond(data.getPayload().getTsi()), ZoneOffset.UTC).withZoneSameInstant(TZ);
         final String formattedTimeZonedTst = timeZonedTst.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
         final String oday = data.getPayload().getOday();
         final String tstDay = formattedTimeZonedTst.substring(0, 10);
 
-        final ZonedDateTime startTimeOday = LocalDate.parse(oday).atStartOfDay(TZ).plus(hhMmToSeconds(data.getPayload().getStart()), ChronoUnit.SECONDS);
+        final ZonedDateTime startTimeOday = LocalDate.parse(oday).atStartOfDay(TZ)
+                .plus(hhMmToSeconds(data.getPayload().getStart()), ChronoUnit.SECONDS);
 
         if (oday.equals(tstDay) &&
-                //If start time would be more than 12 hours in the past, assume that the trip begins on the following day
+        //If start time would be more than 12 hours in the past, assume that the trip begins on the following day
                 startTimeOday.until(timeZonedTst, ChronoUnit.MINUTES) <= 12 * 60) {
-            return data.getPayload().getStart()+":00";
+            return data.getPayload().getStart() + ":00";
         } else {
             int tstTime = hhMmToSeconds(formattedTimeZonedTst.substring(11, 16));
             int startTime = hhMmToSeconds(data.getPayload().getStart());
@@ -42,12 +44,12 @@ public class TimeUtils {
     public static String formatTime(int time) {
         String hours = String.valueOf(time / 3600);
         if (hours.length() < 2) {
-            hours = "0"+hours;
+            hours = "0" + hours;
         }
 
         String minutes = String.valueOf((time % 3600) / 60);
         if (minutes.length() < 2) {
-            minutes = "0"+minutes;
+            minutes = "0" + minutes;
         }
 
         return String.join(":", hours, minutes, "00");
