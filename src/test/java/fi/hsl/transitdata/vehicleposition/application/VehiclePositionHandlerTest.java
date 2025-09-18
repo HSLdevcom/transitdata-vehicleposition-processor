@@ -28,109 +28,78 @@ public class VehiclePositionHandlerTest {
     @Test
     public void testGetTopicSuffix() {
         GtfsRealtime.VehiclePosition vehiclePosition = GtfsRealtime.VehiclePosition.newBuilder()
-                .setTrip(GtfsRealtime.TripDescriptor.newBuilder()
-                        .setRouteId("2550")
-                        .setStartDate("20200101")
-                        .setStartTime("12:00:00")
-                        .setDirectionId(1))
-                .setVehicle(GtfsRealtime.VehicleDescriptor.newBuilder()
-                        .setId("1/1"))
-                .setPosition(GtfsRealtime.Position.newBuilder()
-                        .setBearing(180)
-                        .setSpeed(10)
-                        .setLatitude(60.513f)
+                .setTrip(GtfsRealtime.TripDescriptor.newBuilder().setRouteId("2550").setStartDate("20200101")
+                        .setStartTime("12:00:00").setDirectionId(1))
+                .setVehicle(GtfsRealtime.VehicleDescriptor.newBuilder().setId("1/1"))
+                .setPosition(GtfsRealtime.Position.newBuilder().setBearing(180).setSpeed(10).setLatitude(60.513f)
                         .setLongitude(24.626f))
-                .setCurrentStatus(GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT)
-                .setStopId("2222212")
+                .setCurrentStatus(GtfsRealtime.VehiclePosition.VehicleStopStatus.STOPPED_AT).setStopId("2222212")
                 .build();
 
-        assertEquals("2550/20200101/12:00:00/1/STOPPED_AT/2222212", VehiclePositionHandler.getTopicSuffix(vehiclePosition));
+        assertEquals("2550/20200101/12:00:00/1/STOPPED_AT/2222212",
+                VehiclePositionHandler.getTopicSuffix(vehiclePosition));
     }
 
     @Test
-    public void testAddedTrips() throws HfpParser.InvalidHfpTopicException, HfpParser.InvalidHfpPayloadException, IOException {
+    public void testAddedTrips()
+            throws HfpParser.InvalidHfpTopicException, HfpParser.InvalidHfpPayloadException, IOException {
         final DateTimeFormatter hfpDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
         final Instant now = Instant.now();
 
-        final Hfp.Topic hfpTopic1 = HfpParser.parseTopic("/hfp/v2/journey/ongoing/vp/ubus/0130/07915/7280/1/Veikkola/14:30/null/2/60;24/20/59/31", now.toEpochMilli());
-        final byte[] hfpPayloadBytes1 = ("{\n" +
-                "  \"VP\":{\n" +
-                "    \"desi\":\"280\",\n" +
-                "    \"dir\":\"1\",\n" +
-                "    \"oper\":130,\n" +
-                "    \"veh\":7915,\n" +
-                "    \"tst\":\"" + now.atOffset(ZoneOffset.UTC).format(hfpDateTimeFormatter) + "\",\n" +
-                "    \"tsi\":" + now.getEpochSecond() + ",\n" +
-                "    \"spd\":22.42071533203125,\n" +
-                "    \"hdg\":234,\n" +
-                "    \"lat\":60.25323486328125,\n" +
-                "    \"long\":24.091751098632812,\n" +
-                "    \"acc\":0.0,\n" +
-                "    \"dl\":null,\n" +
-                "    \"odo\":64314.378643035896,\n" +
-                "    \"drst\":null,\n" +
-                "    \"oday\":\"2022-10-27\",\n" +
-                "    \"jrn\":null,\n" +
-                "    \"line\":null,\n" +
-                "    \"start\":\"14:30\",\n" +
-                "    \"loc\":\"GPS\",\n" +
-                "    \"stop\":null,\n" +
-                "    \"route\":\"7280\",\n" +
-                "    \"occu\":0\n" +
-                "  }\n" +
-                "}").getBytes(StandardCharsets.UTF_8);
+        final Hfp.Topic hfpTopic1 = HfpParser.parseTopic(
+                "/hfp/v2/journey/ongoing/vp/ubus/0130/07915/7280/1/Veikkola/14:30/null/2/60;24/20/59/31",
+                now.toEpochMilli());
+        final byte[] hfpPayloadBytes1 = ("{\n" + "  \"VP\":{\n" + "    \"desi\":\"280\",\n" + "    \"dir\":\"1\",\n"
+                + "    \"oper\":130,\n" + "    \"veh\":7915,\n" + "    \"tst\":\""
+                + now.atOffset(ZoneOffset.UTC).format(hfpDateTimeFormatter) + "\",\n" + "    \"tsi\":"
+                + now.getEpochSecond() + ",\n" + "    \"spd\":22.42071533203125,\n" + "    \"hdg\":234,\n"
+                + "    \"lat\":60.25323486328125,\n" + "    \"long\":24.091751098632812,\n" + "    \"acc\":0.0,\n"
+                + "    \"dl\":null,\n" + "    \"odo\":64314.378643035896,\n" + "    \"drst\":null,\n"
+                + "    \"oday\":\"2022-10-27\",\n" + "    \"jrn\":null,\n" + "    \"line\":null,\n"
+                + "    \"start\":\"14:30\",\n" + "    \"loc\":\"GPS\",\n" + "    \"stop\":null,\n"
+                + "    \"route\":\"7280\",\n" + "    \"occu\":0\n" + "  }\n" + "}").getBytes(StandardCharsets.UTF_8);
         final Hfp.Payload hfpPayload1 = HfpParser.parsePayload(HfpParser.newInstance().parseJson(hfpPayloadBytes1));
 
-        final byte[] hfpMessage1 = Hfp.Data.newBuilder().setTopic(hfpTopic1).setPayload(hfpPayload1).setSchemaVersion(1).build().toByteArray();
+        final byte[] hfpMessage1 = Hfp.Data.newBuilder().setTopic(hfpTopic1).setPayload(hfpPayload1).setSchemaVersion(1)
+                .build().toByteArray();
 
-        final Hfp.Topic hfpTopic2 = HfpParser.parseTopic("/hfp/v2/journey/ongoing/vp/ubus/0130/07914/7280/1/Veikkola/14:30/null/2/60;24/20/59/31", now.toEpochMilli());
-        final byte[] hfpPayloadBytes2 = ("{\n" +
-                "  \"VP\":{\n" +
-                "    \"desi\":\"280\",\n" +
-                "    \"dir\":\"1\",\n" +
-                "    \"oper\":130,\n" +
-                "    \"veh\":7914,\n" +
-                "    \"tst\":\"" + now.atOffset(ZoneOffset.UTC).format(hfpDateTimeFormatter) + "\",\n" +
-                "    \"tsi\":" + now.getEpochSecond() + ",\n" +
-                "    \"spd\":22.42071533203125,\n" +
-                "    \"hdg\":234,\n" +
-                "    \"lat\":60.25323486328125,\n" +
-                "    \"long\":24.091751098632812,\n" +
-                "    \"acc\":0.0,\n" +
-                "    \"dl\":null,\n" +
-                "    \"odo\":64314.378643035896,\n" +
-                "    \"drst\":null,\n" +
-                "    \"oday\":\"2022-10-27\",\n" +
-                "    \"jrn\":null,\n" +
-                "    \"line\":null,\n" +
-                "    \"start\":\"14:30\",\n" +
-                "    \"loc\":\"GPS\",\n" +
-                "    \"stop\":null,\n" +
-                "    \"route\":\"7280\",\n" +
-                "    \"occu\":0\n" +
-                "  }\n" +
-                "}").getBytes(StandardCharsets.UTF_8);
+        final Hfp.Topic hfpTopic2 = HfpParser.parseTopic(
+                "/hfp/v2/journey/ongoing/vp/ubus/0130/07914/7280/1/Veikkola/14:30/null/2/60;24/20/59/31",
+                now.toEpochMilli());
+        final byte[] hfpPayloadBytes2 = ("{\n" + "  \"VP\":{\n" + "    \"desi\":\"280\",\n" + "    \"dir\":\"1\",\n"
+                + "    \"oper\":130,\n" + "    \"veh\":7914,\n" + "    \"tst\":\""
+                + now.atOffset(ZoneOffset.UTC).format(hfpDateTimeFormatter) + "\",\n" + "    \"tsi\":"
+                + now.getEpochSecond() + ",\n" + "    \"spd\":22.42071533203125,\n" + "    \"hdg\":234,\n"
+                + "    \"lat\":60.25323486328125,\n" + "    \"long\":24.091751098632812,\n" + "    \"acc\":0.0,\n"
+                + "    \"dl\":null,\n" + "    \"odo\":64314.378643035896,\n" + "    \"drst\":null,\n"
+                + "    \"oday\":\"2022-10-27\",\n" + "    \"jrn\":null,\n" + "    \"line\":null,\n"
+                + "    \"start\":\"14:30\",\n" + "    \"loc\":\"GPS\",\n" + "    \"stop\":null,\n"
+                + "    \"route\":\"7280\",\n" + "    \"occu\":0\n" + "  }\n" + "}").getBytes(StandardCharsets.UTF_8);
         final Hfp.Payload hfpPayload2 = HfpParser.parsePayload(HfpParser.newInstance().parseJson(hfpPayloadBytes2));
 
-        final byte[] hfpMessage2 = Hfp.Data.newBuilder().setTopic(hfpTopic2).setPayload(hfpPayload2).setSchemaVersion(1).build().toByteArray();
+        final byte[] hfpMessage2 = Hfp.Data.newBuilder().setTopic(hfpTopic2).setPayload(hfpPayload2).setSchemaVersion(1)
+                .build().toByteArray();
 
         final Message mockMessage1 = mock(Message.class);
         when(mockMessage1.getData()).thenReturn(hfpMessage1);
-        when(mockMessage1.getProperty(TransitdataProperties.KEY_PROTOBUF_SCHEMA)).thenReturn(TransitdataProperties.ProtobufSchema.HfpData.toString());
+        when(mockMessage1.getProperty(TransitdataProperties.KEY_PROTOBUF_SCHEMA))
+                .thenReturn(TransitdataProperties.ProtobufSchema.HfpData.toString());
         when(mockMessage1.getMessageId()).thenReturn(mock(MessageId.class));
         when(mockMessage1.getEventTime()).thenReturn(now.toEpochMilli());
 
         final Message mockMessage2 = mock(Message.class);
         when(mockMessage2.getData()).thenReturn(hfpMessage2);
-        when(mockMessage2.getProperty(TransitdataProperties.KEY_PROTOBUF_SCHEMA)).thenReturn(TransitdataProperties.ProtobufSchema.HfpData.toString());
+        when(mockMessage2.getProperty(TransitdataProperties.KEY_PROTOBUF_SCHEMA))
+                .thenReturn(TransitdataProperties.ProtobufSchema.HfpData.toString());
         when(mockMessage2.getMessageId()).thenReturn(mock(MessageId.class));
         when(mockMessage2.getEventTime()).thenReturn(now.toEpochMilli());
 
         PulsarApplicationContext mockPulsarApplicationContext = mock(PulsarApplicationContext.class);
 
         Consumer mockConsumer = mock(Consumer.class);
-        when(mockConsumer.acknowledgeAsync(any(MessageId.class))).thenReturn(CompletableFuture.runAsync(() -> {}));
+        when(mockConsumer.acknowledgeAsync(any(MessageId.class))).thenReturn(CompletableFuture.runAsync(() -> {
+        }));
 
         when(mockPulsarApplicationContext.getConsumer()).thenReturn(mockConsumer);
 

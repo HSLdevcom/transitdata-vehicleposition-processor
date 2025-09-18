@@ -14,48 +14,31 @@ import static org.junit.Assert.assertFalse;
 public class GtfsRtGeneratorTest {
     @Test
     public void testNoVehiclePositionGeneratedIfNoLocation() {
-        Hfp.Data data = Hfp.Data.newBuilder()
-                            .setSchemaVersion(1)
-                            .setPayload(Hfp.Payload.newBuilder()
-                                    .setSchemaVersion(1)
-                                    .setTst("")
-                                    .setTsi(0))
-                            .build();
+        Hfp.Data data = Hfp.Data.newBuilder().setSchemaVersion(1)
+                .setPayload(Hfp.Payload.newBuilder().setSchemaVersion(1).setTst("").setTsi(0)).build();
 
-        assertFalse(GtfsRtGenerator.generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).isPresent());
+        assertFalse(GtfsRtGenerator
+                .generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED,
+                        new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty())
+                .isPresent());
     }
 
     @Test
     public void testGtfsRtVehiclePositionHasCorrectValues() {
-        Hfp.Data data = Hfp.Data.newBuilder()
-                            .setSchemaVersion(1)
-                            .setTopic(Hfp.Topic.newBuilder()
-                                .setSchemaVersion(1)
-                                .setReceivedAt(0)
-                                .setTopicPrefix("hfp")
-                                .setTopicVersion("v2")
-                                .setJourneyType(Hfp.Topic.JourneyType.journey)
-                                .setTemporalType(Hfp.Topic.TemporalType.ongoing)
-                                .setOperatorId(1)
-                                .setVehicleNumber(1)
-                                .setUniqueVehicleId("1/1")
-                                .setDirectionId(1)
-                                .setRouteId("1999"))
-                            .setPayload(Hfp.Payload.newBuilder()
-                                .setSchemaVersion(1)
-                                .setLat(60)
-                                .setLong(25)
-                                .setSpd(10)
-                                .setHdg(60)
-                                .setOdo(10000)
-                                .setTsi(1562655000)
-                                .setTst("2019-07-09T06:50:00.000Z")
-                                .setOday("2019-07-09")
-                                .setStart("09:30")
-                                .setOccu(100))
-                            .build();
+        Hfp.Data data = Hfp.Data.newBuilder().setSchemaVersion(1)
+                .setTopic(Hfp.Topic.newBuilder().setSchemaVersion(1).setReceivedAt(0).setTopicPrefix("hfp")
+                        .setTopicVersion("v2").setJourneyType(Hfp.Topic.JourneyType.journey)
+                        .setTemporalType(Hfp.Topic.TemporalType.ongoing).setOperatorId(1).setVehicleNumber(1)
+                        .setUniqueVehicleId("1/1").setDirectionId(1).setRouteId("1999"))
+                .setPayload(Hfp.Payload.newBuilder().setSchemaVersion(1).setLat(60).setLong(25).setSpd(10).setHdg(60)
+                        .setOdo(10000).setTsi(1562655000).setTst("2019-07-09T06:50:00.000Z").setOday("2019-07-09")
+                        .setStart("09:30").setOccu(100))
+                .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator
+                .generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED,
+                        new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty())
+                .get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);
@@ -72,36 +55,20 @@ public class GtfsRtGeneratorTest {
 
     @Test
     public void testGtfsRtVehiclePositionHasCorrectValuesWithLabel() {
-        Hfp.Data data = Hfp.Data.newBuilder()
-                .setSchemaVersion(1)
-                .setTopic(Hfp.Topic.newBuilder()
-                        .setSchemaVersion(1)
-                        .setReceivedAt(0)
-                        .setTopicPrefix("hfp")
-                        .setTopicVersion("v2")
-                        .setJourneyType(Hfp.Topic.JourneyType.journey)
-                        .setTemporalType(Hfp.Topic.TemporalType.ongoing)
-                        .setOperatorId(1)
-                        .setVehicleNumber(1)
-                        .setUniqueVehicleId("1/1")
-                        .setDirectionId(1)
-                        .setRouteId("1999"))
-                .setPayload(Hfp.Payload.newBuilder()
-                        .setSchemaVersion(1)
-                        .setLat(60)
-                        .setLong(25)
-                        .setSpd(10)
-                        .setHdg(60)
-                        .setOdo(10000)
-                        .setTsi(1562655000)
-                        .setTst("2019-07-09T06:50:00.000Z")
-                        .setOday("2019-07-09")
-                        .setStart("09:30")
-                        .setLabel("SUOMENLINNA II")
-                        .setOccu(100))
+        Hfp.Data data = Hfp.Data.newBuilder().setSchemaVersion(1)
+                .setTopic(Hfp.Topic.newBuilder().setSchemaVersion(1).setReceivedAt(0).setTopicPrefix("hfp")
+                        .setTopicVersion("v2").setJourneyType(Hfp.Topic.JourneyType.journey)
+                        .setTemporalType(Hfp.Topic.TemporalType.ongoing).setOperatorId(1).setVehicleNumber(1)
+                        .setUniqueVehicleId("1/1").setDirectionId(1).setRouteId("1999"))
+                .setPayload(Hfp.Payload.newBuilder().setSchemaVersion(1).setLat(60).setLong(25).setSpd(10).setHdg(60)
+                        .setOdo(10000).setTsi(1562655000).setTst("2019-07-09T06:50:00.000Z").setOday("2019-07-09")
+                        .setStart("09:30").setLabel("SUOMENLINNA II").setOccu(100))
                 .build();
 
-        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator.generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED, new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty()).get();
+        GtfsRealtime.VehiclePosition gtfsRtVp = GtfsRtGenerator
+                .generateVehiclePosition(data, GtfsRealtime.TripDescriptor.ScheduleRelationship.SCHEDULED,
+                        new StopStatusProcessor.StopStatus("1", IN_TRANSIT_TO), Optional.empty())
+                .get();
 
         assertEquals(1562655000, gtfsRtVp.getTimestamp());
         assertEquals(60, gtfsRtVp.getPosition().getLatitude(), 0.001);

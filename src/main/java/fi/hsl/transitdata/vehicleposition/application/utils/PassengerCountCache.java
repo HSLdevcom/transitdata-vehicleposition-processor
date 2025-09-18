@@ -14,16 +14,18 @@ public class PassengerCountCache {
     private static final Duration MAX_AGE = Duration.ofMinutes(5);
 
     private final Cache<VehicleIdAndTrip, PassengerCount.Payload> passengerCountCache = Caffeine.newBuilder()
-            .expireAfterWrite(MAX_AGE)
-            .scheduler(Scheduler.systemScheduler())
-            .build();
+            .expireAfterWrite(MAX_AGE).scheduler(Scheduler.systemScheduler()).build();
 
-    public void updatePassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId, PassengerCount.Payload passengerCount) {
-        passengerCountCache.put(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId), passengerCount);
+    public void updatePassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime,
+            String directionId, PassengerCount.Payload passengerCount) {
+        passengerCountCache.put(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId),
+                passengerCount);
     }
 
-    public PassengerCount.Payload getPassengerCount(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId) {
-        return passengerCountCache.getIfPresent(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId));
+    public PassengerCount.Payload getPassengerCount(String uniqueVehicleId, String routeId, String operatingDay,
+            String startTime, String directionId) {
+        return passengerCountCache
+                .getIfPresent(new VehicleIdAndTrip(uniqueVehicleId, routeId, operatingDay, startTime, directionId));
     }
 
     private static class VehicleIdAndTrip {
@@ -33,7 +35,8 @@ public class PassengerCountCache {
         public final String startTime;
         public final String directionId;
 
-        private VehicleIdAndTrip(String uniqueVehicleId, String routeId, String operatingDay, String startTime, String directionId) {
+        private VehicleIdAndTrip(String uniqueVehicleId, String routeId, String operatingDay, String startTime,
+                String directionId) {
             this.uniqueVehicleId = uniqueVehicleId;
             this.routeId = routeId;
             this.operatingDay = operatingDay;
@@ -43,10 +46,14 @@ public class PassengerCountCache {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
             VehicleIdAndTrip that = (VehicleIdAndTrip) o;
-            return Objects.equals(uniqueVehicleId, that.uniqueVehicleId) && Objects.equals(routeId, that.routeId) && Objects.equals(operatingDay, that.operatingDay) && Objects.equals(startTime, that.startTime) && Objects.equals(directionId, that.directionId);
+            return Objects.equals(uniqueVehicleId, that.uniqueVehicleId) && Objects.equals(routeId, that.routeId)
+                    && Objects.equals(operatingDay, that.operatingDay) && Objects.equals(startTime, that.startTime)
+                    && Objects.equals(directionId, that.directionId);
         }
 
         @Override
