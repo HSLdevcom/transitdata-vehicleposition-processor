@@ -10,9 +10,13 @@ import java.util.Optional;
 import static fi.hsl.transitdata.vehicleposition.application.utils.TimeUtils.getStartTime;
 
 public class GtfsRtGenerator {
-    private GtfsRtGenerator() {}
+    private GtfsRtGenerator() {
+    }
 
-    public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData, GtfsRealtime.TripDescriptor.ScheduleRelationship scheduleRelationship, StopStatusProcessor.StopStatus stopStatus, Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatus) {
+    public static Optional<GtfsRealtime.VehiclePosition> generateVehiclePosition(Hfp.Data hfpData,
+            GtfsRealtime.TripDescriptor.ScheduleRelationship scheduleRelationship,
+            StopStatusProcessor.StopStatus stopStatus,
+            Optional<GtfsRealtime.VehiclePosition.OccupancyStatus> occupancyStatus) {
         //Ignore messages where the vehicle has no location
         if (!hfpData.getPayload().hasLat() || !hfpData.getPayload().hasLong()) {
             return Optional.empty();
@@ -27,12 +31,9 @@ public class GtfsRtGenerator {
             vp.setStopId(stopStatus.stopId);
         }
 
-        vp.setPosition(GtfsRealtime.Position.newBuilder()
-                .setLatitude((float) hfpData.getPayload().getLat())
-                .setLongitude((float) hfpData.getPayload().getLong())
-                .setSpeed((float) hfpData.getPayload().getSpd())
-                .setBearing(hfpData.getPayload().getHdg())
-                .setOdometer(hfpData.getPayload().getOdo()));
+        vp.setPosition(GtfsRealtime.Position.newBuilder().setLatitude((float) hfpData.getPayload().getLat())
+                .setLongitude((float) hfpData.getPayload().getLong()).setSpeed((float) hfpData.getPayload().getSpd())
+                .setBearing(hfpData.getPayload().getHdg()).setOdometer(hfpData.getPayload().getOdo()));
 
         GtfsRealtime.VehicleDescriptor.Builder vehicleDescriptor = GtfsRealtime.VehicleDescriptor.newBuilder()
                 .setId(hfpData.getTopic().getUniqueVehicleId());
@@ -44,12 +45,10 @@ public class GtfsRtGenerator {
 
         String startTime = getStartTime(hfpData);
 
-        vp.setTrip(GtfsRealtime.TripDescriptor.newBuilder()
-                .setScheduleRelationship(scheduleRelationship)
+        vp.setTrip(GtfsRealtime.TripDescriptor.newBuilder().setScheduleRelationship(scheduleRelationship)
                 .setDirectionId(hfpData.getTopic().getDirectionId() - 1)
                 .setRouteId(RouteIdUtils.normalizeRouteId(hfpData.getTopic().getRouteId()))
-                .setStartDate(hfpData.getPayload().getOday().replaceAll("-", ""))
-                .setStartTime(startTime));
+                .setStartDate(hfpData.getPayload().getOday().replaceAll("-", "")).setStartTime(startTime));
 
         occupancyStatus.ifPresent(vp::setOccupancyStatus);
 
