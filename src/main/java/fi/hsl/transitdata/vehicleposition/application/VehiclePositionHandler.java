@@ -5,6 +5,7 @@ import com.google.transit.realtime.GtfsRealtime;
 import com.typesafe.config.Config;
 import fi.hsl.common.gtfsrt.FeedMessageFactory;
 import fi.hsl.common.hfp.proto.Hfp;
+import fi.hsl.common.metrics.PipelineMetrics;
 import fi.hsl.common.passengercount.proto.PassengerCount;
 import fi.hsl.common.pulsar.IMessageHandler;
 import fi.hsl.common.pulsar.PulsarApplicationContext;
@@ -32,6 +33,8 @@ public class VehiclePositionHandler implements IMessageHandler {
     private static final Duration LOG_INTERVAL = Duration.ofSeconds(1);
     //If HFP message is delayed by more than this duration, add it to delayed messages counter
     private static final Duration DELAYED_MESSAGE_THRESHOLD = Duration.ofMinutes(2);
+
+    private static final String PIPELINE = "vehicleposition";
 
     private final Consumer<byte[]> consumer;
     private final Producer<byte[]> producer;
@@ -230,6 +233,12 @@ public class VehiclePositionHandler implements IMessageHandler {
                         }
                         sendPulsarMessage(data.getTopic().getUniqueVehicleId(), topicSuffix, feedMessage,
                                 data.getPayload().getTsi());
+
+                        final long ingestTime = message.getEventTime();
+                        if (ingestTime > 0) {
+                            PipelineMetrics.observeLatency(PIPELINE,
+                                    (System.currentTimeMillis() - ingestTime) / 1000.0);
+                        }
                     }
                 } catch (Exception x) {
                     log.error("Preparing or sending pulsar message failed.", x);
