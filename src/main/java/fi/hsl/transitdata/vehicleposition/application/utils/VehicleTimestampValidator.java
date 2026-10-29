@@ -34,7 +34,9 @@ public class VehicleTimestampValidator {
             }) == hfpData.getPayload().getTsi();
         } else {
             //Discard vehicle positions if timestamp is too much in the future
-            log.warn("Vehicle {} had timestamp {} seconds in future (vehicle: {}, current time: {})", hfpData.getTopic().getUniqueVehicleId(), timeDifferenceSeconds, hfpData.getPayload().getTsi(), pulsarEventTimeMs / 1000);
+            log.warn("Vehicle {} had timestamp {} seconds in future (vehicle: {}, current time: {})",
+                    hfpData.getTopic().getUniqueVehicleId(), timeDifferenceSeconds, hfpData.getPayload().getTsi(),
+                    pulsarEventTimeMs / 1000);
             return false;
         }
     }
