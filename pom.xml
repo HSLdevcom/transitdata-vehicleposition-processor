@@ -8,7 +8,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
-        <common.version>3.0.0</common.version>
+        <common.version>3.1.0</common.version>
         <spotlessMavenPlugin.version>3.10.3</spotlessMavenPlugin.version>
     </properties>
 
