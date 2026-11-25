@@ -4,7 +4,7 @@
 # ============================
 # Build stage
 # ============================
-FROM hsldevcom/infodevops-docker-base-images:1.0.2-25-java-jdk AS build
+FROM hsldevcom/infodevops-docker-base-images:1.1.1-25-java-jdk AS build
 WORKDIR /usr/app
 
 ARG GITHUB_ACTOR=github-actions
@@ -24,6 +24,6 @@ RUN --mount=type=secret,id=github_token \
 # ============================
 # Runtime stage
 # ============================
-FROM hsldevcom/infodevops-docker-base-images:1.0.2-25-java-jre
+FROM hsldevcom/infodevops-docker-base-images:1.1.1-25-java-jre
 COPY --from=build /usr/app/target/transitdata-vehicleposition-processor.jar /usr/app/transitdata-vehicleposition-processor.jar
 ENTRYPOINT ["java", "-XX:InitialRAMPercentage=10.0", "-XX:MaxRAMPercentage=75.0", "-jar", "/usr/app/transitdata-vehicleposition-processor.jar"]
